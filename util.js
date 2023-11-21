@@ -35,3 +35,34 @@ var loadJSONResource = function (url, callback) {
         }
     });
 };
+
+
+function compileShader(type, source){
+	if (type == 'vertex'){
+		gl.compileShader(source);
+		if (!gl.getShaderParameter(source, gl.COMPILE_STATUS)) {
+			console.error('ERROR compiling vertex shader!', gl.getShaderInfoLog(source));
+			return;
+		}
+	}
+	else {
+		gl.compileShader(source);
+		if (!gl.getShaderParameter(source, gl.COMPILE_STATUS)) {
+			console.error('ERROR compiling fragment shader!', gl.getShaderInfoLog(source));
+			return;
+		}
+	}
+}
+
+function linkProgram(programName){
+	gl.linkProgram(programName);
+	if (!gl.getProgramParameter(programName, gl.LINK_STATUS)) {
+		console.error('ERROR linking program!', gl.getProgramInfoLog(programName));
+		return;
+	}
+	gl.validateProgram(programName);
+	if (!gl.getProgramParameter(programName, gl.VALIDATE_STATUS)) {
+		console.error('ERROR validating program!', gl.getProgramInfoLog(programName));
+		return;
+	}
+}
