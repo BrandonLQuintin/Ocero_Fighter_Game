@@ -1,6 +1,17 @@
 // Initial Starter Code from YouTuber Indigo Code's 5th WebGL Tutorial
 // https://www.youtube.com/watch?v=33gn3_khXxw
 
+// Handle key presses and releases
+const keys = {};
+
+document.addEventListener("keydown", (event) => {
+  keys[event.key] = true;
+});
+
+document.addEventListener("keyup", (event) => {
+  keys[event.key] = false;
+});
+
 var gl;
 var model;
 
@@ -35,7 +46,7 @@ var InitDemo = function () {
 													alert('Fatal error getting Susan texture (see console)');
 													console.error(imgErr);
 												} else { 
-													RunDemo(vsText, fsText, floorVsText, floorFsText, img, modelObj);
+													main(vsText, fsText, floorVsText, floorFsText, img, modelObj);
 												}
 											});
 										}
@@ -50,7 +61,7 @@ var InitDemo = function () {
 	});
 };
 
-var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderText, floorFragmentShaderText,  SusanImage, SusanModel) {
+var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText, floorFragmentShaderText,  SusanImage, SusanModel) {
 	console.log('This is working');
 	model = SusanModel;
 
@@ -101,28 +112,11 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
 	gl.attachShader(floorShaderProgram, floorFragmentShader);
 	linkProgram(floorShaderProgram);
 
-	// Create buffer
+	// Create buffer for susan
 	var susanVertices = SusanModel.meshes[0].vertices;
 	var susanIndices = [].concat.apply([], SusanModel.meshes[0].faces);
 	var susanTexCoords = SusanModel.meshes[0].texturecoords[0];
 	var susanNormals = SusanModel.meshes[0].normals;
-
-
-	var floorVertices = [
-		-5.0, 0.0, -5.0,
-		5.0, 0.0, -5.0,
-		5.0, 0.0, 5.0,
-		-5.0, 0.0, 5.0,
-	];
-	
-	var floorIndices = [0, 1, 2, 0, 2, 3];
-	
-	var floorTexCoords = [
-		0.0, 0.0,
-		1.0, 0.0,
-		1.0, 1.0,
-		0.0, 1.0,
-	];
 
 	var susanPosVertexBufferObject = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, susanPosVertexBufferObject);
@@ -140,41 +134,93 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
 	gl.bindBuffer(gl.ARRAY_BUFFER, susanNormalBufferObject);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(susanNormals), gl.STATIC_DRAW);
 
+	// Setup attributes for "susan"
+	gl.useProgram(mainShaderProgram);
+
+	var positionAttribLocationSusan = gl.getAttribLocation(mainShaderProgram, 'vertPosition');
 	gl.bindBuffer(gl.ARRAY_BUFFER, susanPosVertexBufferObject);
-	var positionAttribLocation = gl.getAttribLocation(mainShaderProgram, 'vertPosition');
 	gl.vertexAttribPointer(
-		positionAttribLocation, // Attribute location
-		3, // Number of elements per attribute
-		gl.FLOAT, // Type of elements
-		gl.FALSE,
-		3 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
-		0 // Offset from the beginning of a single vertex to this attribute
+	    positionAttribLocationSusan,
+	    3,
+	    gl.FLOAT,
+	    gl.FALSE,
+	    3 * Float32Array.BYTES_PER_ELEMENT,
+	    0
 	);
-	gl.enableVertexAttribArray(positionAttribLocation);
+	gl.enableVertexAttribArray(positionAttribLocationSusan);
 
+	var texCoordAttribLocationSusan = gl.getAttribLocation(mainShaderProgram, 'vertTexCoord');
 	gl.bindBuffer(gl.ARRAY_BUFFER, susanTexCoordVertexBufferObject);
-	var texCoordAttribLocation = gl.getAttribLocation(mainShaderProgram, 'vertTexCoord');
 	gl.vertexAttribPointer(
-		texCoordAttribLocation, // Attribute location
-		2, // Number of elements per attribute
-		gl.FLOAT, // Type of elements
-		gl.FALSE,
-		2 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
-		0
+	    texCoordAttribLocationSusan,
+	    2,
+	    gl.FLOAT,
+	    gl.FALSE,
+	    2 * Float32Array.BYTES_PER_ELEMENT,
+	    0
 	);
-	gl.enableVertexAttribArray(texCoordAttribLocation);
+	gl.enableVertexAttribArray(texCoordAttribLocationSusan);
 
+	var normalAttribLocationSusan = gl.getAttribLocation(mainShaderProgram, 'vertNormal');
 	gl.bindBuffer(gl.ARRAY_BUFFER, susanNormalBufferObject);
-	var normalAttribLocation = gl.getAttribLocation(mainShaderProgram, 'vertNormal');
 	gl.vertexAttribPointer(
-		normalAttribLocation, // Attribute location
-		3, // Number of elements per attribute
-		gl.FLOAT, // Type of elements
-		gl.TRUE,
-		3 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
-		0
+	    normalAttribLocationSusan,
+	    3,
+	    gl.FLOAT,
+	    gl.TRUE,
+	    3 * Float32Array.BYTES_PER_ELEMENT,
+	    0
 	);
-	gl.enableVertexAttribArray(normalAttribLocation);
+	gl.enableVertexAttribArray(normalAttribLocationSusan);
+
+	var floorVertices =
+	[ // X, Y, Z            U, V
+		-1.0, -1.0, -1.0,   1, 1,
+		-1.0, -1.0, 1.0,    1, 0,
+		1.0, -1.0, 1.0,     0, 0,
+		1.0, -1.0, -1.0,    0, 1,
+	];
+	
+	var floorIndices =
+	[
+		0, 1, 2,
+		0, 2, 3,
+	];
+	// Setup attributes for the floor
+	/*
+	gl.useProgram(floorShaderProgram);
+
+	var floorVertexBufferObject = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, floorVertexBufferObject);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(floorVertices), gl.STATIC_DRAW);
+
+	var floorIndexBufferObject = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, floorIndexBufferObject);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(floorIndices), gl.STATIC_DRAW);
+
+	var positionAttribLocationFloor = gl.getAttribLocation(floorShaderProgram, 'vertPositionFloor');
+	var texCoordAttribLocationFloor = gl.getAttribLocation(floorShaderProgram, 'vertTexCoordFloor');
+	gl.bindBuffer(gl.ARRAY_BUFFER, floorVertexBufferObject);
+	gl.vertexAttribPointer(
+	    positionAttribLocationFloor,
+	    3,
+	    gl.FLOAT,
+	    gl.FALSE,
+	    5 * Float32Array.BYTES_PER_ELEMENT,
+	    0
+	);
+	gl.enableVertexAttribArray(positionAttribLocationFloor);
+
+	gl.vertexAttribPointer(
+	    texCoordAttribLocationFloor,
+	    2,
+	    gl.FLOAT,
+	    gl.FALSE,
+	    5 * Float32Array.BYTES_PER_ELEMENT,
+	    3 * Float32Array.BYTES_PER_ELEMENT
+	);
+	gl.enableVertexAttribArray(texCoordAttribLocationFloor);
+	*/
 
 
 
@@ -208,9 +254,11 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
     gl.bindTexture(gl.TEXTURE_2D, null);
 
 	// Tell OpenGL state machine which program should be active.
-	gl.useProgram(mainShaderProgram);
-
+	gl.useProgram(floorShaderProgram);
 	var floorMatWorldUniformLocation = gl.getUniformLocation(floorShaderProgram, 'mWorld');
+
+
+	gl.useProgram(mainShaderProgram);
 	var matWorldUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mWorld');
 	var matViewUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mView');
 	var matProjUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mProj');
@@ -225,7 +273,9 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
 	mat4.lookAt(viewMatrix, [0, 0, -8], [0, 0, 0], [0, 1, 0]);
 	mat4.perspective(projMatrix, glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 1000.0);
 
+	gl.useProgram(floorShaderProgram);
 	gl.uniformMatrix4fv(floorMatWorldUniformLocation, gl.FALSE, worldMatrix);
+	gl.useProgram(mainShaderProgram);
 	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, worldMatrix);
 	gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
 	gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, projMatrix);
@@ -234,9 +284,9 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
 	var yRotationMatrix = new Float32Array(16);
 
 	var objects = [
-		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'susan' },
+		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'susan' }, // type doesn't do anything yet
 		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'susan' },
-		{ worldMatrix: mat4.create(), coord: [3.0, -3.0, 5.0], type: 'floor' },
+		{ worldMatrix: mat4.create(), coord: [3.0, -3.0, 5.0], type: 'susan' },
 		{ worldMatrix: mat4.create(), coord: [0.0, -1.0, 0.0], type: 'floor' }
 	];
 
@@ -253,25 +303,29 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
 
 
 	// ------------- Main loop -------------
-
+	
 	var identityMatrix = new Float32Array(16);
 	mat4.identity(identityMatrix);
 	var angle = 0;
+	var bounceBack = false;
 	var loop = function () {
 		gl.clearColor(0.75, 0.85, 0.8, 1.0);
     	gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
     	angle = performance.now() / 1000 / 6 * 2 * Math.PI;
+		mat4.identity(worldMatrix);
+		mat4.rotate(yRotationMatrix, worldMatrix, angle, [0, 1, 0]);
+		mat4.rotate(xRotationMatrix, worldMatrix, angle / 4, [1, 0, 0]);
+		mat4.mul(worldMatrix, yRotationMatrix, xRotationMatrix);
 
+		
+		
 		index = 0;
     	// Render objects
 		for (obj of objects){
 			index += 1;
 			if (index == 1){ // susan
-				mat4.identity(obj.worldMatrix);
-				mat4.rotate(yRotationMatrix, obj.worldMatrix, angle, [0, 1, 0]);
-				mat4.rotate(xRotationMatrix, obj.worldMatrix, angle / 4, [1, 0, 0]);
-				mat4.mul(obj.worldMatrix, yRotationMatrix, xRotationMatrix);
+				obj.worldMatrix = worldMatrix;
 
 
 				gl.useProgram(mainShaderProgram);
@@ -282,31 +336,64 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
     	    	gl.drawElements(gl.TRIANGLES, susanIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
 			else if (index == 2){ // susan
+				if(keys['w']){ // move forward
+					coordinates = (approachAnotherVertex(obj.coord[0], obj.coord[1], obj.coord[2], objects[2].coord[0], objects[2].coord[1], objects[2].coord[2]));
+					objects[1].coord = coordinates;
+					gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+				}
+				if(keys['s']){ // move backwards
+					coordinates = (unapproachAnotherVertex(obj.coord[0], obj.coord[1], obj.coord[2], objects[2].coord[0], objects[2].coord[1], objects[2].coord[2]));
+					objects[1].coord = coordinates;
+					gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+				}
+				viewMatrix[12] = obj.coord[0]; // x
+				viewMatrix[13] = obj.coord[1] + 5; // y
+				viewMatrix[14] = obj.coord[2] - 15; // z
+				gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
 				obj.worldMatrix[12] = obj.coord[0]; // x
 				obj.worldMatrix[13] = obj.coord[1]; // y
 				obj.worldMatrix[14] = obj.coord[2]; // z
 
 				gl.useProgram(mainShaderProgram);
     	    	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, obj.worldMatrix);
-    	    	gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+    	    	
     	    	gl.activeTexture(gl.TEXTURE0);
 
     	    	gl.drawElements(gl.TRIANGLES, susanIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
 			else if (index == 3) { // susan
-                obj.worldMatrix[12] = obj.coord[0]; // x
+                if (bounceBack == false){
+					obj.coord[2] += 0.05;
+					if (obj.coord[2] >= 14){
+						bounceBack = true;
+					}
+				}
+				if (bounceBack == true){
+					obj.coord[2] -= 0.05;
+					if (obj.coord[2] <= 0){
+						bounceBack = false;
+					}
+
+				}
+				if(keys['o']){
+					console.log(obj.coord[2]);
+					console.log(bounceBack);
+				}
+
+				obj.worldMatrix[12] = obj.coord[0]; // x
 				obj.worldMatrix[13] = obj.coord[1]; // y
 				obj.worldMatrix[14] = obj.coord[2]; // z
-
+				
 				gl.useProgram(mainShaderProgram);
     	    	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, obj.worldMatrix);
     	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
     	    	gl.activeTexture(gl.TEXTURE0);
 
     	    	gl.drawElements(gl.TRIANGLES, susanIndices.length, gl.UNSIGNED_SHORT, 0);
+
+				
             }
 			else if (index == 4) { // floor
-				console.log("floor")
                 obj.worldMatrix[12] = obj.coord[0]; // x
 				obj.worldMatrix[13] = obj.coord[1]; // y
 				obj.worldMatrix[14] = obj.coord[2]; // z
@@ -315,7 +402,7 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
     	    	gl.uniformMatrix4fv(floorMatWorldUniformLocation, gl.FALSE, obj.worldMatrix);
     	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
     	    	gl.activeTexture(gl.TEXTURE0);
-
+				
     	    	gl.drawElements(gl.TRIANGLES, floorIndices.length, gl.UNSIGNED_SHORT, 0);
             }
 
@@ -332,4 +419,6 @@ var RunDemo = function (vertexShaderText, fragmentShaderText, floorVertexShaderT
 
 	requestAnimationFrame(loop);
 };
+
+
 
