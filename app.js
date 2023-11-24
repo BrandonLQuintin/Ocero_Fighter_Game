@@ -264,13 +264,22 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	var matProjUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mProj');
 
 
-	
+	var objects = [
+		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'susan' }, // type doesn't do anything yet
+		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'susan' },
+		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'susan' },
+		{ worldMatrix: mat4.create(), coord: [0.0, -1.0, 0.0], type: 'floor' }
+	];
+
+	var camera = {
+		camPosCoord: [0, 0, -8], targetPosCoord: [objects[1].coord], upwardDirCoord: [0, 1, 0]
+	}
 
 	var worldMatrix = new Float32Array(16);
 	var viewMatrix = new Float32Array(16);
 	var projMatrix = new Float32Array(16);
 	mat4.identity(worldMatrix);
-	mat4.lookAt(viewMatrix, [0, 0, -8], [0, 0, 0], [0, 1, 0]);
+	mat4.lookAt(viewMatrix, camera.camPosCoord, camera.targetPosCoord, camera.upwardDirCoord);
 	mat4.perspective(projMatrix, glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 1000.0);
 
 	gl.useProgram(floorShaderProgram);
@@ -283,12 +292,9 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	var xRotationMatrix = new Float32Array(16);
 	var yRotationMatrix = new Float32Array(16);
 
-	var objects = [
-		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'susan' }, // type doesn't do anything yet
-		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'susan' },
-		{ worldMatrix: mat4.create(), coord: [3.0, -3.0, 5.0], type: 'susan' },
-		{ worldMatrix: mat4.create(), coord: [0.0, -1.0, 0.0], type: 'floor' }
-	];
+	
+
+	
 
 
 	// ------------- Lighting information -------------
@@ -306,8 +312,14 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	
 	var identityMatrix = new Float32Array(16);
 	mat4.identity(identityMatrix);
+
+	var distanceText = document.getElementById("distance");
+
 	var angle = 0;
 	var bounceBack = false;
+	var cameraChanged = false;
+	var newCamCoords = camera.camPosCoord;
+	var newPlayerCoords = objects[1].coord;
 	var loop = function () {
 		gl.clearColor(0.75, 0.85, 0.8, 1.0);
     	gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
@@ -320,13 +332,28 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 		
 		
+		distanceText.innerHTML = "Distance: " + calculateDistance(objects[1].coord, objects[2].coord).toFixed(1);
 		index = 0;
+		if(keys['d']){ // rotate right
+			newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, 0.01));
+			camera.camPosCoord = newCamCoords;
+			gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+			cameraChanged = true;
+		}
+		if(keys['a']){ // rotate left
+			newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, -0.01));
+			camera.camPosCoord = newCamCoords;
+			gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+			cameraChanged = true;
+		}
+
     	// Render objects
 		for (obj of objects){
 			index += 1;
 			if (index == 1){ // susan
+				worldMatrix[13] = 5;
 				obj.worldMatrix = worldMatrix;
-
+				
 
 				gl.useProgram(mainShaderProgram);
     	    	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, obj.worldMatrix);
@@ -336,19 +363,35 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
     	    	gl.drawElements(gl.TRIANGLES, susanIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
 			else if (index == 2){ // susan
-				if(keys['w']){ // move forward
-					coordinates = (approachAnotherVertex(obj.coord[0], obj.coord[1], obj.coord[2], objects[2].coord[0], objects[2].coord[1], objects[2].coord[2]));
-					objects[1].coord = coordinates;
+				if (keys['w']) { // move forward
+					const newPlayerCoords = moveToAnotherVertex(obj.coord, objects[2].coord, "forward");
+					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord); // help from Copilot
+					objects[1].coord = newPlayerCoords;
 					gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+
+					camera.camPosCoord[0] += moveAmount[0];
+					camera.camPosCoord[1] += moveAmount[1];
+					camera.camPosCoord[2] += moveAmount[2];
 				}
 				if(keys['s']){ // move backwards
-					coordinates = (unapproachAnotherVertex(obj.coord[0], obj.coord[1], obj.coord[2], objects[2].coord[0], objects[2].coord[1], objects[2].coord[2]));
-					objects[1].coord = coordinates;
+					newPlayerCoords = (moveToAnotherVertex(obj.coord, objects[2].coord, "backward"));
+					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord);
+					objects[1].coord = newPlayerCoords;
 					gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+
+					camera.camPosCoord[0] += moveAmount[0];
+					camera.camPosCoord[1] += moveAmount[1];
+					camera.camPosCoord[2] += moveAmount[2];
 				}
-				viewMatrix[12] = obj.coord[0]; // x
-				viewMatrix[13] = obj.coord[1] + 5; // y
-				viewMatrix[14] = obj.coord[2] - 15; // z
+
+				camera.targetPosCoord = obj.coord;
+				
+				if (cameraChanged == false){
+					camera.camPosCoord = [camera.camPosCoord[0], obj.coord[1], camera.camPosCoord[2]];
+				}
+
+				cameraChanged = false;
+				mat4.lookAt(viewMatrix, camera.camPosCoord, camera.targetPosCoord, camera.upwardDirCoord);
 				gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
 				obj.worldMatrix[12] = obj.coord[0]; // x
 				obj.worldMatrix[13] = obj.coord[1]; // y
@@ -376,8 +419,7 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 				}
 				if(keys['o']){
-					console.log(obj.coord[2]);
-					console.log(bounceBack);
+					console.log(camera.coord);
 				}
 
 				obj.worldMatrix[12] = obj.coord[0]; // x

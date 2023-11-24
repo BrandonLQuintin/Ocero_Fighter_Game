@@ -67,53 +67,81 @@ function linkProgram(programName){
 	}
 }
 
-function approachAnotherVertex(v1x, v1y, v1z, v2x, v2y, v2z){ // I had help from copilot for this one.
+function moveToAnotherVertex(vertex1, vertex2, forwardOrBackward){ // I had help from ChatGPT for this one.
+    x = vertex1[0];
+    y = vertex1[1];
+    z = vertex1[2];
+
+    x1 = vertex2[0];
+    y1 = vertex2[1];
+    z1 = vertex2[2];
+
     speed = 0.05;
 
-    directionX = v2x - v1x;
-    directionY = v2y - v1y;
-    directionZ = v2z - v1z;
+    directionX = x1 - x;
+    directionY = y1 - y;
+    directionZ = z1 - z;
 
     distance = Math.sqrt(directionX ** 2 + directionY ** 2 + directionZ ** 2);
     normalizedDirectionX = directionX / distance;
     normalizedDirectionY = directionY / distance;
     normalizedDirectionZ = directionZ / distance;
+    
 
     displacementX = normalizedDirectionX * speed;
     displacementY = normalizedDirectionY * speed;
     displacementZ = normalizedDirectionZ * speed;
-
-    newX = v1x + displacementX;
-    newY = v1y + displacementY;
-    newZ = v1z + displacementZ;
-
-    if (distance <= 1.7) {
-        return [v1x, v1y, v1z];
-    } else {
-        return [newX, newY, newZ];
+    
+    if (forwardOrBackward == 'forward'){
+        newX = x + displacementX;
+        newY = y + displacementY;
+        newZ = z + displacementZ;
     }
+    else{
+        newX = x - displacementX;
+        newY = y - displacementY;
+        newZ = z - displacementZ;
+    }
+
+    return [newX, newY, newZ];
 }
 
-function unapproachAnotherVertex(v1x, v1y, v1z, v2x, v2y, v2z){
-    speed = 0.05;
+function calculateDistance(vertex1, vertex2){
+    x = vertex1[0];
+    y = vertex1[1];
+    z = vertex1[2];
 
-    directionX = v2x - v1x;
-    directionY = v2y - v1y;
-    directionZ = v2z - v1z;
+    x1 = vertex2[0];
+    y1 = vertex2[1];
+    z1 = vertex2[2];
+
+    directionX = x1 - x;
+    directionY = y1 - y;
+    directionZ = z1 - z;
 
     distance = Math.sqrt(directionX ** 2 + directionY ** 2 + directionZ ** 2);
-    normalizedDirectionX = directionX / distance;
-    normalizedDirectionY = directionY / distance;
-    normalizedDirectionZ = directionZ / distance;
-    
+    return distance;
+}
 
-    displacementX = normalizedDirectionX * speed;
-    displacementY = normalizedDirectionY * speed;
-    displacementZ = normalizedDirectionZ * speed;
-    
-    newX = v1x - displacementX;
-    newY = v1y - displacementY;
-    newZ = v1z - displacementZ;
+
+function rotateObjectAroundAxis(vertex1, vertex2, angle) { // I had help from ChatGPT for this one.
+    x = vertex1[0];
+    y = vertex1[1];
+    z = vertex1[2];
+
+    x1 = vertex2[0];
+    y1 = vertex2[1];
+    z1 = vertex2[2];
+
+    const displacement = [
+        x - x1,
+        y - y1,
+        z - z1
+    ];
+
+    const newX = x1 + displacement[0] * Math.cos(angle) - displacement[2] * Math.sin(angle);
+    const newY = y;
+    const newZ = z1 + displacement[0] * Math.sin(angle) + displacement[2] * Math.cos(angle);
 
     return [newX, newY, newZ];
 }
