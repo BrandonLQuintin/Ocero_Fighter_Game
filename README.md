@@ -2,6 +2,7 @@
  
 MUST HAVE NODE.JS INSTALLED
 
-1. To run, open powershell (or skip this step if you cloned through VS CODE) and run the command "cd [THE FOLDER DIRECTORY]"
+1. Run this command in PowerShell npm install -g http-server
+2. To run, (skip this step if you are running in VS CODE terminal) and run the command "cd [THE FOLDER DIRECTORY]"
 2. And run "http-server.cmd"
 3. Open up browser and paste the link (usually "localhost:8080")

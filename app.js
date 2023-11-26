@@ -1,5 +1,6 @@
 // Initial Starter Code from YouTuber Indigo Code's 5th WebGL Tutorial
 // https://www.youtube.com/watch?v=33gn3_khXxw
+// https://github.com/sessamekesh/IndigoCS-webgl-tutorials/tree/432a3a36a30a9b3e6ca74373b955f771fbedd36a
 
 // Handle key presses and releases
 const keys = {};
@@ -36,21 +37,7 @@ var InitDemo = function () {
 									alert('Fatal error getting floor fragment shader (see console)');
 									console.error(floorFsErr);
 								} else {
-									loadJSONResource('resources/Susan.json', function (modelErr, modelObj) {
-										if (modelErr) {
-											alert('Fatal error getting Susan model (see console)');
-											console.error(fsErr);
-										} else {
-											loadImage('resources/SusanTexture.png', function (imgErr, img) {
-												if (imgErr) {
-													alert('Fatal error getting Susan texture (see console)');
-													console.error(imgErr);
-												} else { 
-													main(vsText, fsText, floorVsText, floorFsText, img, modelObj);
-												}
-											});
-										}
-									});
+									main(vsText, fsText, floorVsText, floorFsText);
 								}
 							});
 						}
@@ -61,13 +48,11 @@ var InitDemo = function () {
 	});
 };
 
-var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText, floorFragmentShaderText,  SusanImage, SusanModel) {
+var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText, floorFragmentShaderText) {
 	console.log('This is working');
-	model = SusanModel;
 
 	var canvas = document.getElementById('game-surface');
 	gl = canvas.getContext('webgl');
-    model = SusanModel;
 
 	if (!gl) {
 		console.log('WebGL not supported, falling back on experimental-webgl');
@@ -112,66 +97,55 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	gl.attachShader(floorShaderProgram, floorFragmentShader);
 	linkProgram(floorShaderProgram);
 
-	// Create buffer for susan
-	var susanVertices = SusanModel.meshes[0].vertices;
-	var susanIndices = [].concat.apply([], SusanModel.meshes[0].faces);
-	var susanTexCoords = SusanModel.meshes[0].texturecoords[0];
-	var susanNormals = SusanModel.meshes[0].normals;
+	// Create buffer for billboard
+	var billboardVertices = [
+		// X, Y, Z            U, V
+		-0.5, 0.5, 0.0,   1, 1, // top left
+		-0.5, -0.5, 0.0,  1, 0, // bottom left
+		0.5, -0.5, 0.0,   0, 0, // bottom right
+		0.5, 0.5, 0.0,    0, 1 // top right
+	];
 
-	var susanPosVertexBufferObject = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, susanPosVertexBufferObject);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(susanVertices), gl.STATIC_DRAW);
+	var billboardIndices = [
+		3, 2, 1,
+		3, 1, 0
+	];
 
-	var susanTexCoordVertexBufferObject = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, susanTexCoordVertexBufferObject);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(susanTexCoords), gl.STATIC_DRAW);
+	var billboardVertexBufferObject = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(billboardVertices), gl.STATIC_DRAW);
 
-	var susanIndexBufferObject = gl.createBuffer();
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, susanIndexBufferObject);
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(susanIndices), gl.STATIC_DRAW);
+	var billboardIndexBufferObject = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, billboardIndexBufferObject);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(billboardIndices), gl.STATIC_DRAW);
 
-	var susanNormalBufferObject = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, susanNormalBufferObject);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(susanNormals), gl.STATIC_DRAW);
-
-	// Setup attributes for "susan"
+	// Setup attributes for "billboard"
 	gl.useProgram(mainShaderProgram);
 
-	var positionAttribLocationSusan = gl.getAttribLocation(mainShaderProgram, 'vertPosition');
-	gl.bindBuffer(gl.ARRAY_BUFFER, susanPosVertexBufferObject);
+	var positionAttribLocationbillboard = gl.getAttribLocation(mainShaderProgram, 'vertPosition');
+	gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
 	gl.vertexAttribPointer(
-	    positionAttribLocationSusan,
+	    positionAttribLocationbillboard,
 	    3,
 	    gl.FLOAT,
 	    gl.FALSE,
-	    3 * Float32Array.BYTES_PER_ELEMENT,
+	    5 * Float32Array.BYTES_PER_ELEMENT,
 	    0
 	);
-	gl.enableVertexAttribArray(positionAttribLocationSusan);
+	gl.enableVertexAttribArray(positionAttribLocationbillboard);
 
-	var texCoordAttribLocationSusan = gl.getAttribLocation(mainShaderProgram, 'vertTexCoord');
-	gl.bindBuffer(gl.ARRAY_BUFFER, susanTexCoordVertexBufferObject);
+	var texCoordAttribLocationbillboard = gl.getAttribLocation(mainShaderProgram, 'vertTexCoord');
+	gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
 	gl.vertexAttribPointer(
-	    texCoordAttribLocationSusan,
+	    texCoordAttribLocationbillboard,
 	    2,
 	    gl.FLOAT,
 	    gl.FALSE,
-	    2 * Float32Array.BYTES_PER_ELEMENT,
-	    0
+	    5 * Float32Array.BYTES_PER_ELEMENT,
+	    3 * Float32Array.BYTES_PER_ELEMENT
 	);
-	gl.enableVertexAttribArray(texCoordAttribLocationSusan);
+	gl.enableVertexAttribArray(texCoordAttribLocationbillboard);
 
-	var normalAttribLocationSusan = gl.getAttribLocation(mainShaderProgram, 'vertNormal');
-	gl.bindBuffer(gl.ARRAY_BUFFER, susanNormalBufferObject);
-	gl.vertexAttribPointer(
-	    normalAttribLocationSusan,
-	    3,
-	    gl.FLOAT,
-	    gl.TRUE,
-	    3 * Float32Array.BYTES_PER_ELEMENT,
-	    0
-	);
-	gl.enableVertexAttribArray(normalAttribLocationSusan);
 
 	var floorVertices =
 	[ // X, Y, Z            U, V
@@ -225,19 +199,6 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 
 	// ------------- Create texture -------------
-	var susanTexture = gl.createTexture();
-	gl.bindTexture(gl.TEXTURE_2D, susanTexture);
-	gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-	gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.texImage2D(
-		gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
-		gl.UNSIGNED_BYTE,
-		SusanImage
-	);
-	gl.bindTexture(gl.TEXTURE_2D, null);
 
 	var boxTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, boxTexture);
@@ -262,12 +223,13 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	var matWorldUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mWorld');
 	var matViewUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mView');
 	var matProjUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mProj');
+	
 
 
 	var objects = [
-		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'susan' }, // type doesn't do anything yet
-		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'susan' },
-		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'susan' },
+		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'billboard' }, // type doesn't do anything yet
+		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'billboard' },
+		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'billboard' },
 		{ worldMatrix: mat4.create(), coord: [0.0, -1.0, 0.0], type: 'floor' }
 	];
 
@@ -320,49 +282,62 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	var cameraChanged = false;
 	var newCamCoords = camera.camPosCoord;
 	var newPlayerCoords = objects[1].coord;
+
+	var targetFPS = 60; // The code that forces 60 FPS is generated from Chat GPT
+	var expectedFrameTime = 1000 / targetFPS;
+	var lastUpdateTime = performance.now();
+
+
 	var loop = function () {
+
+		var currentTime = performance.now();
+    	var deltaTime = currentTime - lastUpdateTime;
+    	if (deltaTime >= expectedFrameTime){
+
+		lastUpdateTime = currentTime - (deltaTime % expectedFrameTime);
+
 		gl.clearColor(0.75, 0.85, 0.8, 1.0);
     	gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 
+
     	angle = performance.now() / 1000 / 6 * 2 * Math.PI;
 		mat4.identity(worldMatrix);
-		mat4.rotate(yRotationMatrix, worldMatrix, angle, [0, 1, 0]);
-		mat4.rotate(xRotationMatrix, worldMatrix, angle / 4, [1, 0, 0]);
-		mat4.mul(worldMatrix, yRotationMatrix, xRotationMatrix);
+		mat4.rotate(worldMatrix, worldMatrix, angle, [0, 1, 0]);
 
-		
 		
 		distanceText.innerHTML = "Distance: " + calculateDistance(objects[1].coord, objects[2].coord).toFixed(1);
 		index = 0;
 		if(keys['d']){ // rotate right
-			newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, 0.01));
+			newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, -0.04));
 			camera.camPosCoord = newCamCoords;
-			gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+			gl.bindTexture(gl.TEXTURE_2D, boxTexture);
 			cameraChanged = true;
 		}
 		if(keys['a']){ // rotate left
-			newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, -0.01));
+			newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, 0.04));
 			camera.camPosCoord = newCamCoords;
-			gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+			gl.bindTexture(gl.TEXTURE_2D, boxTexture);
 			cameraChanged = true;
 		}
+
+		
 
     	// Render objects
 		for (obj of objects){
 			index += 1;
-			if (index == 1){ // susan
+			if (index == 1){ // billboard
 				worldMatrix[13] = 5;
 				obj.worldMatrix = worldMatrix;
 				
 
 				gl.useProgram(mainShaderProgram);
     	    	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, obj.worldMatrix);
-    	    	gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+    	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
     	    	gl.activeTexture(gl.TEXTURE0);
 
-    	    	gl.drawElements(gl.TRIANGLES, susanIndices.length, gl.UNSIGNED_SHORT, 0);
+    	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
-			else if (index == 2){ // susan
+			else if (index == 2){ // player
 				if (keys['w']) { // move forward
 					const newPlayerCoords = moveToAnotherVertex(obj.coord, objects[2].coord, "forward");
 					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord); // help from Copilot
@@ -377,7 +352,7 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 					newPlayerCoords = (moveToAnotherVertex(obj.coord, objects[2].coord, "backward"));
 					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord);
 					objects[1].coord = newPlayerCoords;
-					gl.bindTexture(gl.TEXTURE_2D, susanTexture);
+					gl.bindTexture(gl.TEXTURE_2D, boxTexture);
 
 					camera.camPosCoord[0] += moveAmount[0];
 					camera.camPosCoord[1] += moveAmount[1];
@@ -402,17 +377,17 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
     	    	
     	    	gl.activeTexture(gl.TEXTURE0);
 
-    	    	gl.drawElements(gl.TRIANGLES, susanIndices.length, gl.UNSIGNED_SHORT, 0);
+    	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
-			else if (index == 3) { // susan
+			else if (index == 3) { // billboard
                 if (bounceBack == false){
-					obj.coord[2] += 0.05;
+					obj.coord[2] += 0.20;
 					if (obj.coord[2] >= 14){
 						bounceBack = true;
 					}
 				}
 				if (bounceBack == true){
-					obj.coord[2] -= 0.05;
+					obj.coord[2] -= 0.20;
 					if (obj.coord[2] <= 0){
 						bounceBack = false;
 					}
@@ -431,7 +406,7 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
     	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
     	    	gl.activeTexture(gl.TEXTURE0);
 
-    	    	gl.drawElements(gl.TRIANGLES, susanIndices.length, gl.UNSIGNED_SHORT, 0);
+    	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
 
 				
             }
@@ -456,7 +431,12 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
     	requestAnimationFrame(loop);
 
-		};
+		}
+		else{
+			requestAnimationFrame(loop);
+		}
+	}
+		
 
 
 	requestAnimationFrame(loop);

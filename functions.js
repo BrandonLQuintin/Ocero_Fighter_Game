@@ -76,7 +76,7 @@ function moveToAnotherVertex(vertex1, vertex2, forwardOrBackward){ // I had help
     y1 = vertex2[1];
     z1 = vertex2[2];
 
-    speed = 0.05;
+    speed = 0.20;
 
     directionX = x1 - x;
     directionY = y1 - y;
@@ -145,3 +145,4 @@ function rotateObjectAroundAxis(vertex1, vertex2, angle) { // I had help from Ch
 
     return [newX, newY, newZ];
 }
+
