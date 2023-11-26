@@ -220,9 +220,10 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 
 	gl.useProgram(mainShaderProgram);
-	var matWorldUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mWorld');
-	var matViewUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mView');
 	var matProjUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mProj');
+	var modelViewMatrixUniform = gl.getUniformLocation(mainShaderProgram, 'modelViewMatrix');
+
+	
 	
 
 
@@ -247,8 +248,6 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	gl.useProgram(floorShaderProgram);
 	gl.uniformMatrix4fv(floorMatWorldUniformLocation, gl.FALSE, worldMatrix);
 	gl.useProgram(mainShaderProgram);
-	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, worldMatrix);
-	gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
 	gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, projMatrix);
 
 	var xRotationMatrix = new Float32Array(16);
@@ -287,6 +286,8 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	var expectedFrameTime = 1000 / targetFPS;
 	var lastUpdateTime = performance.now();
 
+	var modelViewMatrix = mat4.multiply([], viewMatrix, objects[1].worldMatrix);
+
 
 	var loop = function () {
 
@@ -304,6 +305,7 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 		mat4.identity(worldMatrix);
 		mat4.rotate(worldMatrix, worldMatrix, angle, [0, 1, 0]);
 
+		gl.useProgram(mainShaderProgram);
 		
 		distanceText.innerHTML = "Distance: " + calculateDistance(objects[1].coord, objects[2].coord).toFixed(1);
 		index = 0;
@@ -325,13 +327,24 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
     	// Render objects
 		for (obj of objects){
 			index += 1;
+			// Code calculates 3d "billboard" effect
+			// I also got help from copilot for this one.
+  			var direction = vec3.subtract([], camera.camPosCoord, obj.coord);
+  			vec3.normalize(direction, direction);
+  			var right = vec3.cross([], [0, 1, 0], direction);
+  			var up = vec3.cross([], direction, right);
+  			var billboardRotation = mat4.fromRotation([], Math.atan2(-direction[0], -direction[2]), [0, 1, 0]);
+  			var billboardModelMatrix = mat4.clone(obj.worldMatrix);
+  			mat4.multiply(billboardModelMatrix, billboardModelMatrix, billboardRotation);
+  			mat4.multiply(modelViewMatrix, viewMatrix, billboardModelMatrix);
+  			gl.uniformMatrix4fv(modelViewMatrixUniform, gl.FALSE, modelViewMatrix);
+
 			if (index == 1){ // billboard
 				worldMatrix[13] = 5;
 				obj.worldMatrix = worldMatrix;
 				
 
 				gl.useProgram(mainShaderProgram);
-    	    	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, obj.worldMatrix);
     	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
     	    	gl.activeTexture(gl.TEXTURE0);
 
@@ -367,13 +380,11 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 				cameraChanged = false;
 				mat4.lookAt(viewMatrix, camera.camPosCoord, camera.targetPosCoord, camera.upwardDirCoord);
-				gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
 				obj.worldMatrix[12] = obj.coord[0]; // x
 				obj.worldMatrix[13] = obj.coord[1]; // y
 				obj.worldMatrix[14] = obj.coord[2]; // z
 
 				gl.useProgram(mainShaderProgram);
-    	    	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, obj.worldMatrix);
     	    	
     	    	gl.activeTexture(gl.TEXTURE0);
 
@@ -402,7 +413,6 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 				obj.worldMatrix[14] = obj.coord[2]; // z
 				
 				gl.useProgram(mainShaderProgram);
-    	    	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, obj.worldMatrix);
     	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
     	    	gl.activeTexture(gl.TEXTURE0);
 
