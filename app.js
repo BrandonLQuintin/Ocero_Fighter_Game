@@ -66,6 +66,8 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	gl.clearColor(0.75, 0.85, 0.8, 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	gl.enable(gl.DEPTH_TEST);
+	gl.enable(gl.BLEND);
+	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 	gl.enable(gl.CULL_FACE);
 	gl.frontFace(gl.CCW);
 	gl.cullFace(gl.BACK);
@@ -202,6 +204,7 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 	var boxTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+	gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -214,6 +217,20 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
     );
     gl.bindTexture(gl.TEXTURE_2D, null);
 
+	var textureAtlas = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    gl.texImage2D(
+        gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        document.getElementById('texture-atlas')
+    );
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
 	// Tell OpenGL state machine which program should be active.
 	gl.useProgram(floorShaderProgram);
 	var floorMatWorldUniformLocation = gl.getUniformLocation(floorShaderProgram, 'mWorld');
@@ -222,6 +239,8 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	gl.useProgram(mainShaderProgram);
 	var matProjUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mProj');
 	var modelViewMatrixUniform = gl.getUniformLocation(mainShaderProgram, 'modelViewMatrix');
+	var textureUCoord = gl.getUniformLocation(mainShaderProgram, 'u');
+	var textureVCoord = gl.getUniformLocation(mainShaderProgram, 'v');
 
 	
 	
@@ -250,26 +269,8 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	gl.useProgram(mainShaderProgram);
 	gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, projMatrix);
 
-	var xRotationMatrix = new Float32Array(16);
-	var yRotationMatrix = new Float32Array(16);
 
-	
-
-	
-
-
-	// ------------- Lighting information -------------
-	gl.useProgram(mainShaderProgram);
-	var ambientUniformLocation = gl.getUniformLocation(mainShaderProgram, 'ambientLightIntensity');
-	var sunlightDirUniformLocation = gl.getUniformLocation(mainShaderProgram, 'sunlightDirection');
-	var sunlightIntUniformLocation = gl.getUniformLocation(mainShaderProgram, 'sunlightIntensity');
-
-	gl.uniform3f(ambientUniformLocation, 0.2, 0.2, 0.2);
-	gl.uniform3f(sunlightDirUniformLocation, 3.0, 4.0, -2.0);
-	gl.uniform3f(sunlightIntUniformLocation, 0.9, 0.9, 0.9);
-
-
-	// ------------- Main loop -------------
+	// ------------- Main loop variables -------------
 	
 	var identityMatrix = new Float32Array(16);
 	mat4.identity(identityMatrix);
@@ -288,6 +289,13 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 	var modelViewMatrix = mat4.multiply([], viewMatrix, objects[1].worldMatrix);
 
+	var uStart = 0;
+	var vStart = 0;
+	var uEnd = 0;
+	var vEnd = 0;
+	var outputUV = [0,0,0,0]
+
+	// ------------- Main loop -------------
 
 	var loop = function () {
 
@@ -340,12 +348,15 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
   			gl.uniformMatrix4fv(modelViewMatrixUniform, gl.FALSE, modelViewMatrix);
 
 			if (index == 1){ // billboard
-				worldMatrix[13] = 5;
 				obj.worldMatrix = worldMatrix;
 				
 
 				gl.useProgram(mainShaderProgram);
     	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+				uStart = 0; vStart = 0;	uEnd = 1; vEnd = 1;
+				gl.uniform2f(textureUCoord, uStart, uEnd);
+				gl.uniform2f(textureVCoord, vStart, vEnd);
+
     	    	gl.activeTexture(gl.TEXTURE0);
 
     	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
@@ -355,7 +366,11 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 					const newPlayerCoords = moveToAnotherVertex(obj.coord, objects[2].coord, "forward");
 					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord); // help from Copilot
 					objects[1].coord = newPlayerCoords;
-					gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+					gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+					outputUV = returnAtlasUV(0, 0)
+					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					gl.uniform2f(textureUCoord, uStart, uEnd);
+					gl.uniform2f(textureVCoord, vStart, vEnd);
 
 					camera.camPosCoord[0] += moveAmount[0];
 					camera.camPosCoord[1] += moveAmount[1];
@@ -365,7 +380,11 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 					newPlayerCoords = (moveToAnotherVertex(obj.coord, objects[2].coord, "backward"));
 					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord);
 					objects[1].coord = newPlayerCoords;
-					gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+					gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+					outputUV = returnAtlasUV(6, 8)
+					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					gl.uniform2f(textureUCoord, uStart, uEnd);
+					gl.uniform2f(textureVCoord, vStart, vEnd);
 
 					camera.camPosCoord[0] += moveAmount[0];
 					camera.camPosCoord[1] += moveAmount[1];
@@ -414,6 +433,10 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 				
 				gl.useProgram(mainShaderProgram);
     	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+				uStart = 0; vStart = 0;	uEnd = 1; vEnd = 1;
+				gl.uniform2f(textureUCoord, uStart, uEnd);
+				gl.uniform2f(textureVCoord, vStart, vEnd);
+
     	    	gl.activeTexture(gl.TEXTURE0);
 
     	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);

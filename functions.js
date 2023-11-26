@@ -146,3 +146,18 @@ function rotateObjectAroundAxis(vertex1, vertex2, angle) { // I had help from Ch
     return [newX, newY, newZ];
 }
 
+function returnAtlasUV(x, y){
+    // assuming the texture is a 12x12 grid.
+    // if selecting grid 1, type in 0 instead.
+    gridsize = 12;
+    gridlength = 1 / gridsize;
+
+    vEnd = 1 - (y * gridlength);
+    vStart = vEnd - gridlength;
+    
+    uStart = x * gridlength;
+    uEnd = uStart + gridlength;
+    
+    
+    return [uStart, vStart, uEnd, vEnd];
+}
