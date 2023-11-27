@@ -2,20 +2,15 @@
 // https://www.youtube.com/watch?v=33gn3_khXxw
 // https://github.com/sessamekesh/IndigoCS-webgl-tutorials/tree/432a3a36a30a9b3e6ca74373b955f771fbedd36a
 
-// Handle key presses and releases
-const keys = {};
-
-document.addEventListener("keydown", (event) => {
-  keys[event.key] = true;
-});
-
-document.addEventListener("keyup", (event) => {
-  keys[event.key] = false;
-});
-
 var gl;
 var model;
-
+function startGame() {
+	let music = document.getElementById('background-music');
+	music.volume = 0.3;
+	music.loop = true;
+	music.play();
+	InitDemo();
+}
 var InitDemo = function () {
 	loadTextResource('shaders/main_shader.vs', function (vsErr, vsText) {
 		if (vsErr) {
@@ -202,18 +197,18 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 	// ------------- Create texture -------------
 
-	var boxTexture = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+	var floorTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, floorTexture);
 	gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
     gl.texImage2D(
         gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
         gl.UNSIGNED_BYTE,
-        document.getElementById('crate-image')
+        document.getElementById('floor-image')
     );
     gl.bindTexture(gl.TEXTURE_2D, null);
 
@@ -221,8 +216,8 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
     gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
     gl.texImage2D(
         gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
@@ -248,13 +243,14 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 	var objects = [
 		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'billboard' }, // type doesn't do anything yet
-		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'billboard' },
-		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'billboard' },
-		{ worldMatrix: mat4.create(), coord: [0.0, -1.0, 0.0], type: 'floor' }
+		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'player' },
+		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'enemy' },
+		{ worldMatrix: mat4.create(), coord: [0.0, -1.0, 0.0], type: 'floor' },
+		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'lightning'}
 	];
 
 	var camera = {
-		camPosCoord: [0, 0, -8], targetPosCoord: [objects[1].coord], upwardDirCoord: [0, 1, 0]
+		camPosCoord: [0, 0, -3], targetPosCoord: [objects[1].coord], upwardDirCoord: [0, 1, 0]
 	}
 
 	var worldMatrix = new Float32Array(16);
@@ -276,10 +272,11 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	mat4.identity(identityMatrix);
 
 	var distanceText = document.getElementById("distance");
+	
 
-	var angle = 0;
 	var bounceBack = false;
 	var cameraChanged = false;
+	var initializeFight = true;
 	var newCamCoords = camera.camPosCoord;
 	var newPlayerCoords = objects[1].coord;
 
@@ -295,6 +292,32 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	var vEnd = 0;
 	var outputUV = [0,0,0,0]
 
+	var cameraAngle = 0;
+
+	var flyingSoundEffectLastPlayed = Date.now();
+	var currentlyPunching = false;
+	var punchAnimationBounceBack = false;
+	var punchCounter = 0;
+
+
+
+	const keys = {};
+
+	document.addEventListener("keydown", (event) => {
+		if (['w', 'a', 's', 'd', 'k', 'l'].includes(event.key)) {
+		  keys[event.key] = true;
+		}
+	});
+
+	document.addEventListener("keyup", (event) => {
+	  keys[event.key] = false;
+	  if (event.key === 'k') {
+		initializeFight = true;
+		currentlyPunching = false;
+		punchCounter = 0;
+	  }
+	});
+
 	// ------------- Main loop -------------
 
 	var loop = function () {
@@ -305,42 +328,24 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 		lastUpdateTime = currentTime - (deltaTime % expectedFrameTime);
 
-		gl.clearColor(0.75, 0.85, 0.8, 1.0);
+		gl.clearColor(0.27, 0.66, 1.0, 1.0);
     	gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
-
-
-    	angle = performance.now() / 1000 / 6 * 2 * Math.PI;
-		mat4.identity(worldMatrix);
-		mat4.rotate(worldMatrix, worldMatrix, angle, [0, 1, 0]);
 
 		gl.useProgram(mainShaderProgram);
 		
 		distanceText.innerHTML = "Distance: " + calculateDistance(objects[1].coord, objects[2].coord).toFixed(1);
 		index = 0;
-		if(keys['d']){ // rotate right
-			newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, -0.04));
-			camera.camPosCoord = newCamCoords;
-			gl.bindTexture(gl.TEXTURE_2D, boxTexture);
-			cameraChanged = true;
-		}
-		if(keys['a']){ // rotate left
-			newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, 0.04));
-			camera.camPosCoord = newCamCoords;
-			gl.bindTexture(gl.TEXTURE_2D, boxTexture);
-			cameraChanged = true;
-		}
-
 		
+
 
     	// Render objects
 		for (obj of objects){
+			gl.useProgram(mainShaderProgram);
 			index += 1;
 			// Code calculates 3d "billboard" effect
 			// I also got help from copilot for this one.
   			var direction = vec3.subtract([], camera.camPosCoord, obj.coord);
   			vec3.normalize(direction, direction);
-  			var right = vec3.cross([], [0, 1, 0], direction);
-  			var up = vec3.cross([], direction, right);
   			var billboardRotation = mat4.fromRotation([], Math.atan2(-direction[0], -direction[2]), [0, 1, 0]);
   			var billboardModelMatrix = mat4.clone(obj.worldMatrix);
   			mat4.multiply(billboardModelMatrix, billboardModelMatrix, billboardRotation);
@@ -350,10 +355,12 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 			if (index == 1){ // billboard
 				obj.worldMatrix = worldMatrix;
 				
-
 				gl.useProgram(mainShaderProgram);
-    	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
-				uStart = 0; vStart = 0;	uEnd = 1; vEnd = 1;
+    	    	gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+
+				outputUV = returnAtlasUV(1, 0);
+				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+
 				gl.uniform2f(textureUCoord, uStart, uEnd);
 				gl.uniform2f(textureVCoord, vStart, vEnd);
 
@@ -362,34 +369,137 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
     	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
 			else if (index == 2){ // player
-				if (keys['w']) { // move forward
+				if (Object.values(keys).every(value => value === false)) { // if no keys are pressed
+					outputUV = returnAtlasUV(0, 1);
+					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					
+					gl.uniform2f(textureUCoord, uStart, uEnd);
+					gl.uniform2f(textureVCoord, vStart, vEnd);
+				  }
+
+				else if(keys['k'] && calculateDistance(objects[1].coord, objects[2].coord) < 3){ // fight button
+					currentlyPunching = true;
+					punchCounter += 1;
+					if (initializeFight == true){
+						obj.coord[0] = objects[2].coord[0];
+						obj.coord[1] = objects[2].coord[1] - 0.1;
+						obj.coord[2] = objects[2].coord[2] - 1.5;
+						initializeFight = false;
+					}
+					if (punchCounter == 5) { // Enemy gets punched here!
+						let audio = new Audio('resources/punch.mp3');
+						audio.volume = 0.1;
+						audio.play();
+						punchCounter = 0;
+
+						// used later in the code to render the hit effect
+						objects.push({ worldMatrix: mat4.create(), coord: [objects[2].coord[0], objects[2].coord[1], objects[2].coord[2] - 1], type: 'hit' });
+					}
+					if (punchAnimationBounceBack == false){
+						obj.coord[1] += 0.01;
+						if (obj.coord[1] >= (objects[2].coord[1] + .3)){ // hit top
+							punchAnimationBounceBack = true;
+						}
+					}
+					else if (punchAnimationBounceBack == true){
+						obj.coord[1] -= 0.01;
+						if (obj.coord[1] <= objects[2].coord[1] - .1){ // hit bottom
+							punchAnimationBounceBack = false;
+						}
+					}
+
+					newPlayerCoords = rotateObjectAroundAxis(objects[1].coord, objects[2].coord, .10);
+					obj.coord = newPlayerCoords;
+
+					camera.camPosCoord[0] = newPlayerCoords[0];
+					camera.camPosCoord[1] = newPlayerCoords[1];
+					camera.camPosCoord[2] = newPlayerCoords[2] - 8;
+					cameraChanged = true;
+				}
+				else if (keys['w']) { // move forward
 					const newPlayerCoords = moveToAnotherVertex(obj.coord, objects[2].coord, "forward");
 					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord); // help from Copilot
 					objects[1].coord = newPlayerCoords;
-					gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
-					outputUV = returnAtlasUV(0, 0)
+
+					outputUV = returnAtlasUV(0, 1 + spriteIndex);
 					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					
 					gl.uniform2f(textureUCoord, uStart, uEnd);
 					gl.uniform2f(textureVCoord, vStart, vEnd);
 
 					camera.camPosCoord[0] += moveAmount[0];
 					camera.camPosCoord[1] += moveAmount[1];
 					camera.camPosCoord[2] += moveAmount[2];
+
+					if (Date.now() - flyingSoundEffectLastPlayed >= 1000) {
+						let audio = new Audio('resources/flying.mp3');
+						audio.volume = 1;
+						audio.play();
+						flyingSoundEffectLastPlayed = Date.now();
+					}
+					
 				}
-				if(keys['s']){ // move backwards
+				else if(keys['s']){ // move backwards
 					newPlayerCoords = (moveToAnotherVertex(obj.coord, objects[2].coord, "backward"));
 					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord);
 					objects[1].coord = newPlayerCoords;
-					gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
-					outputUV = returnAtlasUV(6, 8)
+
+					outputUV = returnAtlasUV(0, 1 + spriteIndex);
 					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					
 					gl.uniform2f(textureUCoord, uStart, uEnd);
 					gl.uniform2f(textureVCoord, vStart, vEnd);
 
 					camera.camPosCoord[0] += moveAmount[0];
 					camera.camPosCoord[1] += moveAmount[1];
 					camera.camPosCoord[2] += moveAmount[2];
+
+					if (Date.now() - flyingSoundEffectLastPlayed >= 1000) {
+						let audio = new Audio('resources/flying.mp3');
+						audio.volume = 1;
+						audio.play();
+						flyingSoundEffectLastPlayed = Date.now();
+					}
 				}
+				else if(keys['d']){ // rotate right
+					newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, -0.04));
+					camera.camPosCoord = newCamCoords;
+					gl.bindTexture(gl.TEXTURE_2D, floorTexture);
+					cameraChanged = true;
+		
+					if (cameraAngle < -2.8){
+						cameraAngle = 3.5;
+					}
+					cameraAngle -= 0.04;
+		
+					outputUV = returnAtlasUV(0, 1 + spriteIndex);
+					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					
+					gl.uniform2f(textureUCoord, uStart, uEnd);
+					gl.uniform2f(textureVCoord, vStart, vEnd);
+		
+		
+		
+				}
+				else if(keys['a']){ // rotate left
+					newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, 0.04));
+					camera.camPosCoord = newCamCoords;
+					gl.bindTexture(gl.TEXTURE_2D, floorTexture);
+					cameraChanged = true;
+		
+					if (cameraAngle > 3.5){
+						cameraAngle = -2.8;
+					}
+					cameraAngle += 0.04;
+		
+					outputUV = returnAtlasUV(0, 1 + spriteIndex);
+					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					
+					gl.uniform2f(textureUCoord, uStart, uEnd);
+					gl.uniform2f(textureVCoord, vStart, vEnd);
+					
+				}
+				
 
 				camera.targetPosCoord = obj.coord;
 				
@@ -397,34 +507,62 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 					camera.camPosCoord = [camera.camPosCoord[0], obj.coord[1], camera.camPosCoord[2]];
 				}
 
+
 				cameraChanged = false;
 				mat4.lookAt(viewMatrix, camera.camPosCoord, camera.targetPosCoord, camera.upwardDirCoord);
 				obj.worldMatrix[12] = obj.coord[0]; // x
 				obj.worldMatrix[13] = obj.coord[1]; // y
 				obj.worldMatrix[14] = obj.coord[2]; // z
 
-				gl.useProgram(mainShaderProgram);
-    	    	
-    	    	gl.activeTexture(gl.TEXTURE0);
+				angleBetweenTwoPoints = calculateAngle(camera.camPosCoord, objects[2].coord);
+				spriteIndex = calculateSpriteIndex(cameraAngle); // Used to determine where sprite faces relative to the camera.
 
+				
+
+				if (currentlyPunching == true) { // draw character left or right of enemy
+					if (objects[2].coord[0] > objects[1].coord[0]) {
+						outputUV = returnAtlasUV(2, 4)
+						uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					}
+					else {
+						outputUV = returnAtlasUV(2, 2)
+						uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					}
+					
+					gl.uniform2f(textureUCoord, uStart, uEnd);
+					gl.uniform2f(textureVCoord, vStart, vEnd);
+					currentlyPunching = false;
+				}
+				else { // if character idle (or invalid key pressed), this executes
+					outputUV = returnAtlasUV(0, 1 + spriteIndex);
+					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					
+					gl.uniform2f(textureUCoord, uStart, uEnd);
+					gl.uniform2f(textureVCoord, vStart, vEnd);
+				}
+
+				
+
+				gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+				gl.useProgram(mainShaderProgram);
+    	    	gl.activeTexture(gl.TEXTURE0);
     	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
-			else if (index == 3) { // billboard
+			else if (index == 3) { // enemy
                 if (bounceBack == false){
-					obj.coord[2] += 0.20;
+					obj.coord[2] += 0.10;
 					if (obj.coord[2] >= 14){
 						bounceBack = true;
 					}
 				}
 				if (bounceBack == true){
-					obj.coord[2] -= 0.20;
+					obj.coord[2] -= 0.10;
 					if (obj.coord[2] <= 0){
 						bounceBack = false;
 					}
-
 				}
 				if(keys['o']){
-					console.log(camera.coord);
+					console.log(camera.camPosCoord);
 				}
 
 				obj.worldMatrix[12] = obj.coord[0]; // x
@@ -432,8 +570,8 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 				obj.worldMatrix[14] = obj.coord[2]; // z
 				
 				gl.useProgram(mainShaderProgram);
-    	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
-				uStart = 0; vStart = 0;	uEnd = 1; vEnd = 1;
+    	    	outputUV = returnAtlasUV(0, 0)
+				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
 				gl.uniform2f(textureUCoord, uStart, uEnd);
 				gl.uniform2f(textureVCoord, vStart, vEnd);
 
@@ -450,24 +588,72 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 				gl.useProgram(floorShaderProgram);
     	    	gl.uniformMatrix4fv(floorMatWorldUniformLocation, gl.FALSE, obj.worldMatrix);
-    	    	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+    	    	gl.bindTexture(gl.TEXTURE_2D, floorTexture);
     	    	gl.activeTexture(gl.TEXTURE0);
 				
     	    	gl.drawElements(gl.TRIANGLES, floorIndices.length, gl.UNSIGNED_SHORT, 0);
             }
+
+			else if (index == 5 && objects[5]){ // Hit render!
+				gl.useProgram(mainShaderProgram);
+				outputUV = returnAtlasUV(9, 0);
+				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+				randomNum = -.1 + Math.random() * (0.5 - -.1);
+				if (objects[2].coord[0] > objects[1].coord[0]) {
+					obj.worldMatrix[12] = objects[2].coord[0] - .5; // x
+					obj.worldMatrix[13] = objects[2].coord[1] + randomNum; // y
+					obj.worldMatrix[14] = objects[2].coord[2] - 1; // z
+				}
+				else {
+					obj.worldMatrix[12] = objects[2].coord[0] + .5; // x
+					obj.worldMatrix[13] = objects[2].coord[1] + randomNum; // y
+					obj.worldMatrix[14] = objects[2].coord[2] - 1; // z
+				}
+				
+				
+    	    	outputUV = returnAtlasUV(Math.floor(Math.random() * 3) + 9, 1);
+				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+				gl.uniform2f(textureUCoord, uStart, uEnd);
+				gl.uniform2f(textureVCoord, vStart, vEnd);
+
+    	    	gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+    	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
+				
+				objects.pop();
+			}
+
+			/*else if (index == 5) { // lightning
+				obj.worldMatrix[12] = objects[1].coord[0] + (Math.random() * 3 - 1); // x
+				obj.worldMatrix[13] = objects[1].coord[1] + (Math.random()); // y
+				obj.worldMatrix[14] = objects[1].coord[2] + (Math.random() * 3 - 1); // z
+				
+				gl.useProgram(mainShaderProgram);
+    	    	gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+				outputUV = returnAtlasUV(Math.floor(Math.random() * 3) + 9, 0);
+				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+				gl.uniform2f(textureUCoord, uStart, uEnd);
+				gl.uniform2f(textureVCoord, vStart, vEnd);
+
+    	    	gl.activeTexture(gl.TEXTURE0);
+
+    	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
+
+				
+            }*/
 
 
     	    
 		}
 
 		index = 0;
-
     	requestAnimationFrame(loop);
 
 		}
 		else{
 			requestAnimationFrame(loop);
 		}
+		
 	}
 		
 

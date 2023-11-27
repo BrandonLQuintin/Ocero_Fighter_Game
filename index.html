@@ -1,15 +1,19 @@
 <html>
     <head>
         <title>Ocero Fighting Game</title>
+        <link rel="stylesheet" type="text/css" href="styles.css">
+        <link rel="icon" href="resources/favicon.ico" type="image/x-icon">
     </head>
-    <body onload="InitDemo();">
         <canvas id="game-surface" width="800" height="600">
             Your browser does not support HTML5
         </canvas>
+        <button id="start-game-button" onclick="startGame(); this.style.display = 'none';">Click to start game!</button>
         <br>
         <div id="distance">Distance: 0</div>
-        <img id="crate-image" src="resources/crate.png" width="0" height="0"></img>
+        <img id="floor-image" src="resources/floor.png" width="0" height="0"></img>
         <img id="texture-atlas" src="resources/texture_atlas.png" width="0" height="0"></img>
+        <!-- Royalty free music by Nicole Marie T -->
+        <audio id="background-music" src="resources/music.mp3" preload="auto"></audio>
         <script src="functions.js"></script>
         <script src="gl-matrix.js"></script>
         <script src="app.js"></script>

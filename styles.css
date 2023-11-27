@@ -1,0 +1,19 @@
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  
+  button {
+    font-size: 100%;
+    padding: 15px 30px;
+    width: 20%;
+    margin-top: 20px;
+  }
+  
+  canvas {
+    border: 1px solid black;
+  }
