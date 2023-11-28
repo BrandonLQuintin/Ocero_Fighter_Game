@@ -22,28 +22,14 @@ var InitDemo = function () {
 					alert('Fatal error getting fragment shader (see console)');
 					console.error(fsErr);
 				} else {
-					loadTextResource('shaders/floor_shader.vs', function (floorVsErr, floorVsText) {
-						if (floorVsErr) {
-							alert('Fatal error getting floor vertex shader (see console)');
-							console.error(floorVsErr);
-						} else {
-							loadTextResource('shaders/floor_shader.fs', function (floorFsErr, floorFsText) {
-								if (floorFsErr) {
-									alert('Fatal error getting floor fragment shader (see console)');
-									console.error(floorFsErr);
-								} else {
-									main(vsText, fsText, floorVsText, floorFsText);
-								}
-							});
-						}
-					});
+					main(vsText, fsText);
 				}
 			});
 		}
 	});
 };
 
-var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText, floorFragmentShaderText) {
+var main = function (vertexShaderText, fragmentShaderText) {
 	console.log('This is working');
 
 	var canvas = document.getElementById('game-surface');
@@ -70,29 +56,21 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	// ------------- Create shaders -------------
 	var vertexShader = gl.createShader(gl.VERTEX_SHADER);
 	var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-	var floorVertexShader = gl.createShader(gl.VERTEX_SHADER);
-	var floorFragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
 	
 
 	gl.shaderSource(vertexShader, vertexShaderText);
 	gl.shaderSource(fragmentShader, fragmentShaderText);
-	gl.shaderSource(floorVertexShader, floorVertexShaderText);
-	gl.shaderSource(floorFragmentShader, floorFragmentShaderText);
+
 
 	compileShader('vertex', vertexShader);
 	compileShader('fragment', fragmentShader);
-	compileShader('vertex', floorVertexShader);
-	compileShader('fragment', floorFragmentShader);
+
 
 	var mainShaderProgram = gl.createProgram();
 	gl.attachShader(mainShaderProgram, vertexShader);
 	gl.attachShader(mainShaderProgram, fragmentShader);
 	linkProgram(mainShaderProgram);
 
-	var floorShaderProgram = gl.createProgram();
-	gl.attachShader(floorShaderProgram, floorVertexShader);
-	gl.attachShader(floorShaderProgram, floorFragmentShader);
-	linkProgram(floorShaderProgram);
 
 	// Create buffer for billboard
 	var billboardVertices = [
@@ -108,6 +86,28 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 		3, 1, 0
 	];
 
+	var floorVertices =
+	[ // X, Y, Z            U, V
+		-1000.0, -1.0, -1000.0, 
+		-1000.0, -1.0, 1000.0, 
+		1000.0, -1.0, 1000.0, 
+		1000.0, -1.0, -1000.0, 
+	];
+	
+	var floorIndices =
+	[
+		0, 1, 2,
+		0, 2, 3,
+	];
+
+	var floorVertexBufferObject = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, floorVertexBufferObject);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(floorVertices), gl.STATIC_DRAW);
+
+	var floorIndexBufferObject = gl.createBuffer();
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, floorIndexBufferObject);
+	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(floorIndices), gl.STATIC_DRAW);
+
 	var billboardVertexBufferObject = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
 	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(billboardVertices), gl.STATIC_DRAW);
@@ -118,80 +118,45 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 	// Setup attributes for "billboard"
 	gl.useProgram(mainShaderProgram);
-
-	var positionAttribLocationbillboard = gl.getAttribLocation(mainShaderProgram, 'vertPosition');
-	gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
-	gl.vertexAttribPointer(
-	    positionAttribLocationbillboard,
-	    3,
-	    gl.FLOAT,
-	    gl.FALSE,
-	    5 * Float32Array.BYTES_PER_ELEMENT,
-	    0
-	);
-	gl.enableVertexAttribArray(positionAttribLocationbillboard);
-
-	var texCoordAttribLocationbillboard = gl.getAttribLocation(mainShaderProgram, 'vertTexCoord');
-	gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
-	gl.vertexAttribPointer(
-	    texCoordAttribLocationbillboard,
-	    2,
-	    gl.FLOAT,
-	    gl.FALSE,
-	    5 * Float32Array.BYTES_PER_ELEMENT,
-	    3 * Float32Array.BYTES_PER_ELEMENT
-	);
-	gl.enableVertexAttribArray(texCoordAttribLocationbillboard);
-
-
-	var floorVertices =
-	[ // X, Y, Z            U, V
-		-1.0, -1.0, -1.0,   1, 1,
-		-1.0, -1.0, 1.0,    1, 0,
-		1.0, -1.0, 1.0,     0, 0,
-		1.0, -1.0, -1.0,    0, 1,
-	];
+	var floorpositionAttribLocation = gl.getAttribLocation(mainShaderProgram, 'floorVertPosition');
+	var billboardPositionAttribLocation = gl.getAttribLocation(mainShaderProgram, 'vertPosition');
 	
-	var floorIndices =
-	[
-		0, 1, 2,
-		0, 2, 3,
-	];
-	// Setup attributes for the floor
-	/*
-	gl.useProgram(floorShaderProgram);
-
-	var floorVertexBufferObject = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, floorVertexBufferObject);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(floorVertices), gl.STATIC_DRAW);
-
-	var floorIndexBufferObject = gl.createBuffer();
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, floorIndexBufferObject);
-	gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(floorIndices), gl.STATIC_DRAW);
-
-	var positionAttribLocationFloor = gl.getAttribLocation(floorShaderProgram, 'vertPositionFloor');
-	var texCoordAttribLocationFloor = gl.getAttribLocation(floorShaderProgram, 'vertTexCoordFloor');
 	gl.bindBuffer(gl.ARRAY_BUFFER, floorVertexBufferObject);
 	gl.vertexAttribPointer(
-	    positionAttribLocationFloor,
+	    floorpositionAttribLocation,
+	    3,
+	    gl.FLOAT,
+	    gl.FALSE,
+	    3 * Float32Array.BYTES_PER_ELEMENT,
+	    0
+	);
+	gl.enableVertexAttribArray(floorpositionAttribLocation);
+	
+	gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
+	gl.vertexAttribPointer(
+	    billboardPositionAttribLocation,
 	    3,
 	    gl.FLOAT,
 	    gl.FALSE,
 	    5 * Float32Array.BYTES_PER_ELEMENT,
 	    0
 	);
-	gl.enableVertexAttribArray(positionAttribLocationFloor);
+	gl.enableVertexAttribArray(billboardPositionAttribLocation);
 
+	var billboardTexCoordAttribLocation = gl.getAttribLocation(mainShaderProgram, 'vertTexCoord');
+	gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
 	gl.vertexAttribPointer(
-	    texCoordAttribLocationFloor,
+	    billboardTexCoordAttribLocation,
 	    2,
 	    gl.FLOAT,
 	    gl.FALSE,
 	    5 * Float32Array.BYTES_PER_ELEMENT,
 	    3 * Float32Array.BYTES_PER_ELEMENT
 	);
-	gl.enableVertexAttribArray(texCoordAttribLocationFloor);
-	*/
+	gl.enableVertexAttribArray(billboardTexCoordAttribLocation);
+
+
+
 
 
 
@@ -227,13 +192,13 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
     gl.bindTexture(gl.TEXTURE_2D, null);
 
 	// Tell OpenGL state machine which program should be active.
-	gl.useProgram(floorShaderProgram);
-	var floorMatWorldUniformLocation = gl.getUniformLocation(floorShaderProgram, 'mWorld');
-
 
 	gl.useProgram(mainShaderProgram);
 	var matProjUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mProj');
+	var matViewUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mView');
+	var matWorldUniformLocation = gl.getUniformLocation(mainShaderProgram, 'mWorld');
 	var modelViewMatrixUniform = gl.getUniformLocation(mainShaderProgram, 'modelViewMatrix');
+	var isFloorUniformLocation = gl.getUniformLocation(mainShaderProgram, 'isFloor');
 	var textureUCoord = gl.getUniformLocation(mainShaderProgram, 'u');
 	var textureVCoord = gl.getUniformLocation(mainShaderProgram, 'v');
 
@@ -245,7 +210,7 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'billboard' }, // type doesn't do anything yet
 		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'player' },
 		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'enemy' },
-		{ worldMatrix: mat4.create(), coord: [0.0, -1.0, 0.0], type: 'floor' },
+		{ worldMatrix: mat4.create(), coord: [-3.0, -3.1, 5.0], type: 'floor' },
 		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'lightning'}
 	];
 
@@ -260,10 +225,11 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 	mat4.lookAt(viewMatrix, camera.camPosCoord, camera.targetPosCoord, camera.upwardDirCoord);
 	mat4.perspective(projMatrix, glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 1000.0);
 
-	gl.useProgram(floorShaderProgram);
-	gl.uniformMatrix4fv(floorMatWorldUniformLocation, gl.FALSE, worldMatrix);
 	gl.useProgram(mainShaderProgram);
 	gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, projMatrix);
+	gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, viewMatrix);
+	gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, objects[3].worldMatrix);
+
 
 
 	// ------------- Main loop variables -------------
@@ -330,17 +296,16 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 		gl.clearColor(0.27, 0.66, 1.0, 1.0);
     	gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
-
-		gl.useProgram(mainShaderProgram);
 		
 		distanceText.innerHTML = "Distance: " + calculateDistance(objects[1].coord, objects[2].coord).toFixed(1);
 		index = 0;
-		
+		gl.useProgram(mainShaderProgram);
+		gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
+		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, billboardIndexBufferObject);
 
 
     	// Render objects
 		for (obj of objects){
-			gl.useProgram(mainShaderProgram);
 			index += 1;
 			// Code calculates 3d "billboard" effect
 			// I also got help from copilot for this one.
@@ -354,8 +319,6 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 
 			if (index == 1){ // billboard
 				obj.worldMatrix = worldMatrix;
-				
-				gl.useProgram(mainShaderProgram);
     	    	gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
 
 				outputUV = returnAtlasUV(1, 0);
@@ -544,7 +507,6 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 				
 
 				gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
-				gl.useProgram(mainShaderProgram);
     	    	gl.activeTexture(gl.TEXTURE0);
     	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
@@ -569,7 +531,6 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 				obj.worldMatrix[13] = obj.coord[1]; // y
 				obj.worldMatrix[14] = obj.coord[2]; // z
 				
-				gl.useProgram(mainShaderProgram);
     	    	outputUV = returnAtlasUV(0, 0)
 				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
 				gl.uniform2f(textureUCoord, uStart, uEnd);
@@ -582,20 +543,32 @@ var main = function (vertexShaderText, fragmentShaderText, floorVertexShaderText
 				
             }
 			else if (index == 4) { // floor
+				gl.bindBuffer(gl.ARRAY_BUFFER, floorVertexBufferObject);
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, floorIndexBufferObject);
+
                 obj.worldMatrix[12] = obj.coord[0]; // x
 				obj.worldMatrix[13] = obj.coord[1]; // y
 				obj.worldMatrix[14] = obj.coord[2]; // z
 
-				gl.useProgram(floorShaderProgram);
-    	    	gl.uniformMatrix4fv(floorMatWorldUniformLocation, gl.FALSE, obj.worldMatrix);
+
+				gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, obj.worldMatrix);
+				gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, new Float32Array(viewMatrix));
+
     	    	gl.bindTexture(gl.TEXTURE_2D, floorTexture);
+				uStart = 0; vStart = outputUV[0]; uEnd = 1; vEnd = 1;
+				gl.uniform2f(textureUCoord, uStart, uEnd);
+				gl.uniform2f(textureVCoord, vStart, vEnd);
     	    	gl.activeTexture(gl.TEXTURE0);
-				
+
+				gl.uniform1i(isFloorUniformLocation, true);
     	    	gl.drawElements(gl.TRIANGLES, floorIndices.length, gl.UNSIGNED_SHORT, 0);
+				gl.uniform1i(isFloorUniformLocation, false);
             }
 
 			else if (index == 5 && objects[5]){ // Hit render!
-				gl.useProgram(mainShaderProgram);
+				gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
+				gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, billboardIndexBufferObject);
+
 				outputUV = returnAtlasUV(9, 0);
 				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
 				randomNum = -.1 + Math.random() * (0.5 - -.1);

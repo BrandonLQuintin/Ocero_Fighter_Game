@@ -1,16 +1,25 @@
 precision mediump float;
 
 attribute vec3 vertPosition;
+attribute vec3 floorVertPosition;
 attribute vec2 vertTexCoord;
 
 uniform mat4 mProj;
+uniform mat4 mView;
+uniform mat4 mWorld;
 uniform mat4 modelViewMatrix;
+uniform bool isFloor;
 
 varying vec2 fragTexCoord;
 
 void main()
 {
   fragTexCoord = vertTexCoord;
-  vec4 billboardPosition = modelViewMatrix * vec4(vertPosition, 1.0);
-  gl_Position = mProj * billboardPosition;
+
+  if (isFloor == true){
+    gl_Position = mProj * mView * mWorld * vec4(floorVertPosition, 1.0);
+  }
+  else{
+    gl_Position = mProj * modelViewMatrix * vec4(vertPosition, 1.0);
+  }
 }
