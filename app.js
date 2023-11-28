@@ -207,15 +207,15 @@ var main = function (vertexShaderText, fragmentShaderText) {
 
 
 	var objects = [
-		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'billboard' }, // type doesn't do anything yet
-		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'player' },
-		{ worldMatrix: mat4.create(), coord: [-3.0, -3.0, 5.0], type: 'enemy' },
-		{ worldMatrix: mat4.create(), coord: [-3.0, -3.1, 5.0], type: 'floor' },
+		{ worldMatrix: mat4.create(), coord: [0.0, 5.0, 0.0], type: 'billboard' }, // type doesn't do anything yet
+		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, -5.0], type: 'player' },
+		{ worldMatrix: mat4.create(), coord: [3.0, 6.0, 5.0], type: 'enemy' },
+		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'floor' },
 		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'lightning'}
 	];
 
 	var camera = {
-		camPosCoord: [0, 0, -3], targetPosCoord: [objects[1].coord], upwardDirCoord: [0, 1, 0]
+		camPosCoord: [0, 0, objects[1].coord[2] - 8], targetPosCoord: [objects[1].coord], upwardDirCoord: [0, 1, 0]
 	}
 
 	var worldMatrix = new Float32Array(16);
@@ -251,6 +251,8 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var lastUpdateTime = performance.now();
 
 	var modelViewMatrix = mat4.multiply([], viewMatrix, objects[1].worldMatrix);
+
+	var moveAmount = [0,0,0]; // used later in the 's' key controls
 
 	var uStart = 0;
 	var vStart = 0;
@@ -404,8 +406,21 @@ var main = function (vertexShaderText, fragmentShaderText) {
 				}
 				else if(keys['s']){ // move backwards
 					newPlayerCoords = (moveToAnotherVertex(obj.coord, objects[2].coord, "backward"));
-					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord);
-					objects[1].coord = newPlayerCoords;
+					if (newPlayerCoords[1] > -0.5) {
+						moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord);
+						objects[1].coord = newPlayerCoords;
+
+						if (Date.now() - flyingSoundEffectLastPlayed >= 1000) {
+							let audio = new Audio('resources/flying.mp3');
+							audio.volume = 1;
+							audio.play();
+							flyingSoundEffectLastPlayed = Date.now();
+						}
+						camera.camPosCoord[0] += moveAmount[0];
+						camera.camPosCoord[1] += moveAmount[1];
+						camera.camPosCoord[2] += moveAmount[2];
+					}
+					
 
 					outputUV = returnAtlasUV(0, 1 + spriteIndex);
 					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
@@ -413,16 +428,9 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					gl.uniform2f(textureUCoord, uStart, uEnd);
 					gl.uniform2f(textureVCoord, vStart, vEnd);
 
-					camera.camPosCoord[0] += moveAmount[0];
-					camera.camPosCoord[1] += moveAmount[1];
-					camera.camPosCoord[2] += moveAmount[2];
+					
 
-					if (Date.now() - flyingSoundEffectLastPlayed >= 1000) {
-						let audio = new Audio('resources/flying.mp3');
-						audio.volume = 1;
-						audio.play();
-						flyingSoundEffectLastPlayed = Date.now();
-					}
+					
 				}
 				else if(keys['d']){ // rotate right
 					newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, -0.04));
