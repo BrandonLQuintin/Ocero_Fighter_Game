@@ -206,3 +206,21 @@ calculateSpriteIndex = function(angle){
 
     return spriteIndex;
 }
+
+generateCoordinates = function(vertex){
+    x = vertex[0];
+    y = vertex[1];
+    z = vertex[2];
+
+    newX = x + (Math.random() * 20 - 10);
+    newY = y + (Math.random() * 20 - 10);
+    if (newY < 0){
+        newY = 0;
+    }
+    if (newY > 10){
+        newY = 10;
+    }
+    newZ = z + (Math.random() * 20 - 10);
+
+    return [newX, newY, newZ];
+}

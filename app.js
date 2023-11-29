@@ -223,7 +223,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var projMatrix = new Float32Array(16);
 	mat4.identity(worldMatrix);
 	mat4.lookAt(viewMatrix, camera.camPosCoord, camera.targetPosCoord, camera.upwardDirCoord);
-	mat4.perspective(projMatrix, glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 1000.0);
+	mat4.perspective(projMatrix, glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 100.0);
 
 	gl.useProgram(mainShaderProgram);
 	gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, projMatrix);
@@ -240,7 +240,6 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var distanceText = document.getElementById("distance");
 	
 
-	var bounceBack = false;
 	var cameraChanged = false;
 	var initializeFight = true;
 	var newCamCoords = camera.camPosCoord;
@@ -267,12 +266,16 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var punchAnimationBounceBack = false;
 	var punchCounter = 0;
 
+	var enemyGoToCoordinates = [0,0,0];
+	var enemyCoordinatesLastChanged = Date.now();
+	var enemyTimeLimit = 1500;
+
 
 
 	const keys = {};
 
 	document.addEventListener("keydown", (event) => {
-		if (['w', 'a', 's', 'd', 'k', 'l'].includes(event.key)) {
+		if (['w', 'a', 's', 'd', 'k', 'l', 'o'].includes(event.key)) {
 		  keys[event.key] = true;
 		}
 	});
@@ -382,8 +385,8 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					cameraChanged = true;
 				}
 				else if (keys['w']) { // move forward
-					const newPlayerCoords = moveToAnotherVertex(obj.coord, objects[2].coord, "forward");
-					const moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord); // help from Copilot
+					newPlayerCoords = moveToAnotherVertex(obj.coord, objects[2].coord, "forward");
+					moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord); // help from Copilot
 					objects[1].coord = newPlayerCoords;
 
 					outputUV = returnAtlasUV(0, 1 + spriteIndex);
@@ -519,20 +522,19 @@ var main = function (vertexShaderText, fragmentShaderText) {
     	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
 			}
 			else if (index == 3) { // enemy
-                if (bounceBack == false){
-					obj.coord[2] += 0.10;
-					if (obj.coord[2] >= 14){
-						bounceBack = true;
-					}
+                distanceFromTarget = calculateDistance(obj.coord, enemyGoToCoordinates);
+				if (distanceFromTarget > .1){
+					newNpcCoords = moveToAnotherVertex(obj.coord, enemyGoToCoordinates, "forward");
 				}
-				if (bounceBack == true){
-					obj.coord[2] -= 0.10;
-					if (obj.coord[2] <= 0){
-						bounceBack = false;
-					}
+				if (Date.now() - enemyCoordinatesLastChanged >= enemyTimeLimit) {
+					enemyTimeLimit = Math.floor(Math.random() * 2000) + 1000;
+					enemyGoToCoordinates = generateCoordinates(obj.coord);
+					enemyCoordinatesLastChanged = Date.now();
 				}
+				
+				obj.coord = newNpcCoords;
 				if(keys['o']){
-					console.log(camera.camPosCoord);
+					enemyGoToCoordinates = generateCoordinates(obj.coord);
 				}
 
 				obj.worldMatrix[12] = obj.coord[0]; // x
@@ -596,6 +598,9 @@ var main = function (vertexShaderText, fragmentShaderText) {
 				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
 				gl.uniform2f(textureUCoord, uStart, uEnd);
 				gl.uniform2f(textureVCoord, vStart, vEnd);
+
+				mat4.multiply(modelViewMatrix, viewMatrix, obj.worldMatrix);
+  				gl.uniformMatrix4fv(modelViewMatrixUniform, gl.FALSE, modelViewMatrix);
 
     	    	gl.activeTexture(gl.TEXTURE0);
 				gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
