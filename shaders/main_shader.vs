@@ -8,7 +8,7 @@ uniform mat4 mProj;
 uniform mat4 mView;
 uniform mat4 mWorld;
 uniform mat4 modelViewMatrix;
-uniform bool isFloor;
+uniform bool is3D;
 
 varying vec2 fragTexCoord;
 
@@ -16,7 +16,7 @@ void main()
 {
   fragTexCoord = vertTexCoord;
 
-  if (isFloor == true){
+  if (is3D == true){
     gl_Position = mProj * mView * mWorld * vec4(floorVertPosition, 1.0);
   }
   else{

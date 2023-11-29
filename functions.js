@@ -67,7 +67,7 @@ function linkProgram(programName){
 	}
 }
 
-function moveToAnotherVertex(vertex1, vertex2, forwardOrBackward){ // I had help from ChatGPT for this one.
+function moveToAnotherVertex(vertex1, vertex2, forwardOrBackward, speed){ // I had help from ChatGPT for this one.
     x = vertex1[0];
     y = vertex1[1];
     z = vertex1[2];
@@ -75,8 +75,6 @@ function moveToAnotherVertex(vertex1, vertex2, forwardOrBackward){ // I had help
     x1 = vertex2[0];
     y1 = vertex2[1];
     z1 = vertex2[2];
-
-    speed = 0.20;
 
     directionX = x1 - x;
     directionY = y1 - y;
@@ -178,7 +176,7 @@ function rotateObjectAroundAxis(vertex1, vertex2, angle) { // I had help from Ch
 
 function returnAtlasUV(x, y){
     // assuming the texture is a 12x12 grid.
-    // if selecting grid 1, type in 0 instead.
+    // if selecting grid (1, 1), type in (0, 0) instead.
     gridsize = 12;
     gridlength = 1 / gridsize;
 
@@ -207,7 +205,7 @@ calculateSpriteIndex = function(angle){
     return spriteIndex;
 }
 
-generateCoordinates = function(vertex){
+generateRandomCoordinates = function(vertex){
     x = vertex[0];
     y = vertex[1];
     z = vertex[2];
