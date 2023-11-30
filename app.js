@@ -4,8 +4,10 @@
 
 var gl;
 var model;
+let music = document.getElementById('background-music');
 function startGame() {
-	let music = document.getElementById('background-music');
+	alert("Welcome to Ocero's legendary fight!\nUse WASD to move around, and K to fight!");
+	
 	music.volume = 0.3;
 	music.loop = true;
 	music.play();
@@ -206,14 +208,29 @@ var main = function (vertexShaderText, fragmentShaderText) {
 
 
 	var objects = [
-		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'placeholder' }, // type doesn't do anything yet
-		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, -5.0], type: 'player' },
-		{ worldMatrix: mat4.create(), coord: [3.0, 6.0, 5.0], type: 'enemy' },
-		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'floor' },
-		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'lightning'}
+		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0]}, // placeholder
+		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, -5.0]}, // player
+		{ worldMatrix: mat4.create(), coord: [3.0, 6.0, 5.0]}, // enemy
+		{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0]}, // floor
+		{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0]} // lightning
 	];
 
 	var projectiles = []
+
+	var clouds = [
+
+	]
+	for (let i = 0; i < 3500; i++) {
+		let x = Math.random() * 2000 - 1000;
+		let y = Math.random() * 5 + 15;
+		let z = Math.random() * 2000 - 1000;
+	
+		clouds.push({worldMatrix: mat4.create(), coord: [x, y, z]});
+		var scale = [16, 8, 16]; // Change this to the scale you want
+    	mat4.scale(clouds[i].worldMatrix, clouds[i].worldMatrix, scale);
+
+		
+	}
 
 	var camera = {
 		camPosCoord: [0, 0, objects[1].coord[2] - 8], targetPosCoord: [objects[1].coord], upwardDirCoord: [0, 1, 0]
@@ -224,7 +241,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var projMatrix = new Float32Array(16);
 	mat4.identity(worldMatrix);
 	mat4.lookAt(viewMatrix, camera.camPosCoord, camera.targetPosCoord, camera.upwardDirCoord);
-	mat4.perspective(projMatrix, glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 100.0);
+	mat4.perspective(projMatrix, glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 500.0);
 
 	gl.useProgram(mainShaderProgram);
 	gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, projMatrix);
@@ -239,6 +256,8 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	mat4.identity(identityMatrix);
 
 	var pageText = document.getElementById("game-text");
+	var oceroText = document.getElementById("ocero-text");
+	
 	
 
 	var cameraChanged = false;
@@ -260,8 +279,6 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var vEnd = 0;
 	var outputUV = [0,0,0,0]
 
-	var cameraAngle = 0;
-
 	var flyingSoundEffectLastPlayed = Date.now();
 	var currentlyPunching = false;
 	var punchAnimationBounceBack = false;
@@ -280,7 +297,10 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var enemyIsDefeated = false;
 	var enemyCurrentlyGettingPunched = false;
 	
-	var timeSinceLastAnimation = Date.now();
+	var timeSinceLastProjectileAnimation = Date.now();
+	var projectileAnimationToggle = false;
+	var timeSinceLastSwingAnimation = Date.now();
+	var punchAnimationToggle = false;
 	var timeSinceProjectileExplosion = Date.now();
 	var timeSincePlayerDamage = Date.now();
 	var currentlyHurt = false;
@@ -313,13 +333,14 @@ var main = function (vertexShaderText, fragmentShaderText) {
 			}
 		}
 		if (gameOver){
+			music.play();
 			gameOver = false;
 			objects = [
-				{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'placeholder' }, // type doesn't do anything yet
-				{ worldMatrix: mat4.create(), coord: [3.0, 3.0, -5.0], type: 'player' },
-				{ worldMatrix: mat4.create(), coord: [3.0, 6.0, 5.0], type: 'enemy' },
-				{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0], type: 'floor' },
-				{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0], type: 'lightning'}
+				{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0]}, // placeholder
+				{ worldMatrix: mat4.create(), coord: [3.0, 3.0, -5.0]}, // player
+				{ worldMatrix: mat4.create(), coord: [3.0, 6.0, 5.0]}, // enemy
+				{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0]}, // floor
+				{ worldMatrix: mat4.create(), coord: [3.0, 3.0, 5.0]} // lightning
 			];
 		
 			projectiles = []
@@ -344,6 +365,28 @@ var main = function (vertexShaderText, fragmentShaderText) {
 		gl.useProgram(mainShaderProgram);
 		gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
 		gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, billboardIndexBufferObject);
+
+		// Render all clouds
+		for (cloud of clouds){
+			var direction = vec3.subtract([], camera.camPosCoord, cloud.coord);
+  			vec3.normalize(direction, direction);
+  			var billboardRotation = mat4.fromRotation([], Math.atan2(-direction[0], -direction[2]), [0, 1, 0]);
+  			var billboardModelMatrix = mat4.clone(cloud.worldMatrix);
+  			mat4.multiply(billboardModelMatrix, billboardModelMatrix, billboardRotation);
+  			mat4.multiply(modelViewMatrix, viewMatrix, billboardModelMatrix);
+  			gl.uniformMatrix4fv(modelViewMatrixUniform, gl.FALSE, modelViewMatrix);
+			
+			cloud.worldMatrix[12] = cloud.coord[0]; // x
+			cloud.worldMatrix[13] = cloud.coord[1]; // y
+			cloud.worldMatrix[14] = cloud.coord[2]; // z
+			
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+			
+			gl.uniform2f(textureUCoord, .6666, 1);
+			gl.uniform2f(textureVCoord, 0, .1666);
+			gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
+		}
 
 
     	// Render objects
@@ -377,7 +420,10 @@ var main = function (vertexShaderText, fragmentShaderText) {
 							currentlyHurt = true;
 
 							if (playerHealth < 0){ // GAME OVER
+								music.pause();
+								music.currentTime = 0;
 								alert("You lost! You won " + winsAgainstOcero + " times against Ocero!");
+								oceroText.innerHTML = "<h2>Ocero Says: HA HA HA HA!!!<h2>";
 								gameOver = true;
 								winsAgainstOcero = 0;
 								for (key in keys) {
@@ -387,13 +433,22 @@ var main = function (vertexShaderText, fragmentShaderText) {
 							timeSincePlayerDamage = Date.now();
 							
 						}
-						
-						if (Date.now() - timeSinceLastAnimation >= 90) {
-							enemyOutputUV = returnAtlasUV(9, 2);
-							timeSinceLastAnimation = Date.now();
-						}
 						else{
-							enemyOutputUV = returnAtlasUV(10, 2);
+							if (Date.now() - timeSinceLastProjectileAnimation >= 20){
+								if (projectileAnimationToggle == true){
+									projectileAnimationToggle = false;
+								}
+								else{
+									projectileAnimationToggle = true;
+								}
+								timeSinceLastProjectileAnimation = Date.now();
+							}
+							if (projectileAnimationToggle == true){
+								enemyOutputUV = returnAtlasUV(10, 2);
+							}
+							else{
+								enemyOutputUV = returnAtlasUV(9, 2);
+							}
 						}
 
 
@@ -406,7 +461,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					}
 
 					if (enemyProjectileReachedTarget && Date.now() - timeSinceProjectileExplosion >= 100){ // make projectile dissapear after explosion
-						enemyOutputUV = returnAtlasUV(9, 9);
+
 						projectiles.shift(); // removes first element in array
 						enemyProjectileReachedTarget = false;
 					}
@@ -461,11 +516,12 @@ var main = function (vertexShaderText, fragmentShaderText) {
 						else {
 							//console.log("Enemy is defeated!");
 							enemyIsDefeated = true;
+							oceroText.innerHTML = "<h2>Why!!!<h2>";
 							//console.log(enemyHealth);
 							enemyHealth -= 5;
 							if (enemyHealth < -100){
 								winsAgainstOcero += 1;
-								alert("Ocero: THATS IT!!!");
+								oceroText.innerHTML = "<h2>Ocero Says: THATS IT!!!<h2>";
 								enemyHealth = 100;
 								enemyIsDefeated = false;
 
@@ -482,7 +538,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 						punchCounter = 0;
 
 						// used later in the code to render the hit effect
-						objects.push({ worldMatrix: mat4.create(), coord: [objects[2].coord[0], objects[2].coord[1], objects[2].coord[2] - 1], type: 'hit' });
+						objects.push({ worldMatrix: mat4.create(), coord: [objects[2].coord[0], objects[2].coord[1], objects[2].coord[2] - 1]});
 					}
 					if (punchAnimationBounceBack == false){
 						obj.coord[1] += 0.01;
@@ -506,9 +562,17 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					cameraChanged = true;
 				}
 				else if (keys['w']) { // move forward
-					newPlayerCoords = moveToAnotherVertex(obj.coord, objects[2].coord, "forward", .20);
-					moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord); // help from Copilot
-					objects[1].coord = newPlayerCoords;
+					distanceFromEnemy = calculateDistance(objects[1].coord, objects[2].coord)
+
+					if (distanceFromEnemy > 1){
+						newPlayerCoords = moveToAnotherVertex(obj.coord, objects[2].coord, "forward", .20);
+						moveAmount = vec3.subtract([], newPlayerCoords, objects[1].coord); // help from Copilot
+						objects[1].coord = newPlayerCoords;
+
+						camera.camPosCoord[0] += moveAmount[0];
+						camera.camPosCoord[1] += moveAmount[1];
+						camera.camPosCoord[2] += moveAmount[2];
+					}
 
 					outputUV = returnAtlasUV(0, 1 + spriteIndex);
 					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
@@ -516,9 +580,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					gl.uniform2f(textureUCoord, uStart, uEnd);
 					gl.uniform2f(textureVCoord, vStart, vEnd);
 
-					camera.camPosCoord[0] += moveAmount[0];
-					camera.camPosCoord[1] += moveAmount[1];
-					camera.camPosCoord[2] += moveAmount[2];
+					
 
 					if (Date.now() - flyingSoundEffectLastPlayed >= 1000) {
 						let audio = new Audio('resources/flying.mp3');
@@ -562,11 +624,6 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					gl.bindTexture(gl.TEXTURE_2D, floorTexture);
 					cameraChanged = true;
 		
-					if (cameraAngle < -2.8){
-						cameraAngle = 3.5;
-					}
-					cameraAngle -= 0.04;
-		
 					outputUV = returnAtlasUV(0, 1 + spriteIndex);
 					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
 					
@@ -581,11 +638,6 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					camera.camPosCoord = newCamCoords;
 					gl.bindTexture(gl.TEXTURE_2D, floorTexture);
 					cameraChanged = true;
-		
-					if (cameraAngle > 3.5){
-						cameraAngle = -2.8;
-					}
-					cameraAngle += 0.04;
 		
 					outputUV = returnAtlasUV(0, 1 + spriteIndex);
 					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
@@ -608,20 +660,48 @@ var main = function (vertexShaderText, fragmentShaderText) {
 				obj.worldMatrix[12] = obj.coord[0]; // x
 				obj.worldMatrix[13] = obj.coord[1]; // y
 				obj.worldMatrix[14] = obj.coord[2]; // z
-
-				angleBetweenTwoPoints = calculateAngle(camera.camPosCoord, objects[2].coord);
-				spriteIndex = calculateSpriteIndex(cameraAngle); // Used to determine where sprite faces relative to the camera.
+				rotationY = extractRotationY(viewMatrix);
+				spriteIndex = calculateSpriteIndex(objects[1].coord, objects[2].coord, rotationY); // Used to determine where sprite faces relative to the camera.
 
 				
 
 				if (currentlyPunching == true) { // draw character left or right of enemy
 					enemyCurrentlyGettingPunched = true;
 					if (objects[2].coord[0] > objects[1].coord[0]) {
-						outputUV = returnAtlasUV(2, 4)
+						if (Date.now() - timeSinceLastSwingAnimation >= 20){
+							if (punchAnimationToggle == true){
+								punchAnimationToggle = false;
+							}
+							else{
+								punchAnimationToggle = true;
+							}
+							timeSinceLastSwingAnimation = Date.now();
+						}
+						if (punchAnimationToggle == true){
+							outputUV = returnAtlasUV(3, 4);
+						}
+						else{
+							outputUV = returnAtlasUV(2, 4);
+						}
+						
 						uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
 					}
 					else {
-						outputUV = returnAtlasUV(2, 2)
+						if (Date.now() - timeSinceLastSwingAnimation >= 20){
+							if (punchAnimationToggle == true){
+								punchAnimationToggle = false;
+							}
+							else{
+								punchAnimationToggle = true;
+							}
+							timeSinceLastSwingAnimation = Date.now();
+						}
+						if (punchAnimationToggle == true){
+							outputUV = returnAtlasUV(3, 2);
+						}
+						else{
+							outputUV = returnAtlasUV(2, 2);
+						}
 						uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
 					}
 					
@@ -655,8 +735,8 @@ var main = function (vertexShaderText, fragmentShaderText) {
 				}
 
                 
-				if (distanceFromTarget > .1){
-					newNpcCoords = moveToAnotherVertex(obj.coord, enemyGoToCoordinates, "forward", .20);
+				if (distanceFromTarget > .3){
+					newNpcCoords = moveToAnotherVertex(obj.coord, enemyGoToCoordinates, "forward", .5);
 				}
 				if (enemyIsDefeated == false){
 					outputUV = returnAtlasUV(0, 0)
@@ -748,26 +828,6 @@ var main = function (vertexShaderText, fragmentShaderText) {
 				
 				objects.pop();
 			}
-
-			/*else if (index == 5) { // lightning
-				obj.worldMatrix[12] = objects[1].coord[0] + (Math.random() * 3 - 1); // x
-				obj.worldMatrix[13] = objects[1].coord[1] + (Math.random()); // y
-				obj.worldMatrix[14] = objects[1].coord[2] + (Math.random() * 3 - 1); // z
-				
-				gl.useProgram(mainShaderProgram);
-    	    	gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
-				outputUV = returnAtlasUV(Math.floor(Math.random() * 3) + 9, 0);
-				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
-				gl.uniform2f(textureUCoord, uStart, uEnd);
-				gl.uniform2f(textureVCoord, vStart, vEnd);
-
-    	    	gl.activeTexture(gl.TEXTURE0);
-
-    	    	gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
-
-				
-            }*/
-
 
     	    
 		}
