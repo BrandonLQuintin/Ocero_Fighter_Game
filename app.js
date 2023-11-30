@@ -30,7 +30,6 @@ var InitDemo = function () {
 };
 
 var main = function (vertexShaderText, fragmentShaderText) {
-	console.log('This is working');
 
 	var canvas = document.getElementById('game-surface');
 	gl = canvas.getContext('webgl');
@@ -239,7 +238,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var identityMatrix = new Float32Array(16);
 	mat4.identity(identityMatrix);
 
-	var distanceText = document.getElementById("distance");
+	var pageText = document.getElementById("game-text");
 	
 
 	var cameraChanged = false;
@@ -279,11 +278,12 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var enemyTimeLimit = 1500; // time between enemy movement changes
 	var enemyHealth = 100;
 	var enemyIsDefeated = false;
-	var enemyCurrentlyGettingPunchd = false;
+	var enemyCurrentlyGettingPunched = false;
 	
 	var timeSinceLastAnimation = Date.now();
 	var timeSinceProjectileExplosion = Date.now();
 	var timeSincePlayerDamage = Date.now();
+	var currentlyHurt = false;
 	var enemyOutputUV = returnAtlasUV(9, 9);
 
 
@@ -307,6 +307,11 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	// ------------- Main loop -------------
 
 	var loop = function () {
+		if (currentlyHurt == true){
+			if (Date.now() - timeSincePlayerDamage >= 200){
+				document.body.style.backgroundColor = "rgb(255, 255, 255)";
+			}
+		}
 		if (gameOver){
 			gameOver = false;
 			objects = [
@@ -334,7 +339,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 		gl.clearColor(0.27, 0.66, 1.0, 1.0);
     	gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
 		
-		distanceText.innerHTML = "Distance: " + calculateDistance(objects[1].coord, objects[2].coord).toFixed(1);
+		pageText.innerHTML = "Health: " + playerHealth + " | Score: " + winsAgainstOcero;
 		index = 0;
 		gl.useProgram(mainShaderProgram);
 		gl.bindBuffer(gl.ARRAY_BUFFER, billboardVertexBufferObject);
@@ -343,7 +348,6 @@ var main = function (vertexShaderText, fragmentShaderText) {
 
     	// Render objects
 		for (obj of objects){
-			console.log(enemyCurrentlyGettingPunchd);
 			index += 1;
 			// Code calculates 3d "billboard" effect
 			// I also got help from copilot for this one.
@@ -369,12 +373,18 @@ var main = function (vertexShaderText, fragmentShaderText) {
 						if (distanceFromPlayer < 2 && Date.now() - timeSincePlayerDamage >= 1000) {
 							//console.log("player hit!");
 							playerHealth -= 20;
+							document.body.style.backgroundColor = "rgb(255, 0, 0)";
+							currentlyHurt = true;
+
 							if (playerHealth < 0){ // GAME OVER
-								alert("You died! You won " + winsAgainstOcero + " times against Ocero!");
+								alert("You lost! You won " + winsAgainstOcero + " times against Ocero!");
 								gameOver = true;
+								winsAgainstOcero = 0;
+								for (key in keys) {
+									delete keys[key];
+								}
 							}
 							timeSincePlayerDamage = Date.now();
-							console.log(playerHealth);
 							
 						}
 						
@@ -424,7 +434,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 			else if (index == 2){ // player
 				if (Object.values(keys).every(value => value === false)) { // if no keys are pressed
 					distanceFromEnemy = calculateDistance(objects[1].coord, objects[2].coord)
-					if (distanceFromEnemy > 3){
+					if (distanceFromEnemy > 2){
 						enemyCurrentlyGettingPunched = false;
 					}
 					
@@ -449,15 +459,19 @@ var main = function (vertexShaderText, fragmentShaderText) {
 							enemyHealth -= 5;
 						}
 						else {
-							console.log("Enemy is defeated!");
+							//console.log("Enemy is defeated!");
 							enemyIsDefeated = true;
-							console.log(enemyHealth);
+							//console.log(enemyHealth);
 							enemyHealth -= 5;
 							if (enemyHealth < -100){
 								winsAgainstOcero += 1;
 								alert("Ocero: THATS IT!!!");
 								enemyHealth = 100;
 								enemyIsDefeated = false;
+
+								for (key in keys) {
+									delete keys[key];
+								}
 							}
 							
 							
