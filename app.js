@@ -222,14 +222,29 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var clouds = [
 
 	]
-	for (let i = 0; i < 3500; i++) {
-		let x = Math.random() * 2000 - 1000;
-		let y = Math.random() * 5 + 15;
-		let z = Math.random() * 2000 - 1000;
+	for (let i = 0; i < 1750; i++) {
+		let x = Math.random() * 1000 - 500;
+		let y = Math.random() * 15 + 20;
+		let z = Math.random() * 1000 - 500;
 	
 		clouds.push({worldMatrix: mat4.create(), coord: [x, y, z]});
 		var scale = [16, 8, 16]; // Change this to the scale you want
     	mat4.scale(clouds[i].worldMatrix, clouds[i].worldMatrix, scale);
+
+		
+	}
+
+	var trees = [
+
+	]
+	for (let i = 0; i < 1750; i++) {
+		let x = Math.random() * 1000 - 500;
+		let y = 3;
+		let z = Math.random() * 1000 - 500;
+	
+		trees.push({worldMatrix: mat4.create(), coord: [x, y, z]});
+		var scale = [8, 8, 8]; // Change this to the scale you want
+    	mat4.scale(trees[i].worldMatrix, trees[i].worldMatrix, scale);
 
 		
 	}
@@ -402,6 +417,28 @@ var main = function (vertexShaderText, fragmentShaderText) {
 			
 			gl.uniform2f(textureUCoord, .6666, 1);
 			gl.uniform2f(textureVCoord, 0, .1666);
+			gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
+		}
+
+		// Render all trees
+		for (tree of trees){
+			var direction = vec3.subtract([], camera.camPosCoord, tree.coord);
+  			vec3.normalize(direction, direction);
+  			var billboardRotation = mat4.fromRotation([], Math.atan2(-direction[0], -direction[2]), [0, 1, 0]);
+  			var billboardModelMatrix = mat4.clone(tree.worldMatrix);
+  			mat4.multiply(billboardModelMatrix, billboardModelMatrix, billboardRotation);
+  			mat4.multiply(modelViewMatrix, viewMatrix, billboardModelMatrix);
+  			gl.uniformMatrix4fv(modelViewMatrixUniform, gl.FALSE, modelViewMatrix);
+			
+			tree.worldMatrix[12] = tree.coord[0]; // x
+			tree.worldMatrix[13] = tree.coord[1]; // y
+			tree.worldMatrix[14] = tree.coord[2]; // z
+			
+			gl.activeTexture(gl.TEXTURE0);
+			gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+			
+			gl.uniform2f(textureUCoord, .75, 1);
+			gl.uniform2f(textureVCoord, .1666, .416666);
 			gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
 		}
 

@@ -207,13 +207,7 @@ generateRandomCoordinates = function(vertex){
     z = vertex[2];
 
     newX = x + (Math.random() * 20 - 10);
-    newY = y + (Math.random() * 20 - 10);
-    if (newY < 0){
-        newY = 0;
-    }
-    if (newY > 10){
-        newY = 10;
-    }
+    newY = Math.random() * 5 + 5;;
     newZ = z + (Math.random() * 20 - 10);
 
     return [newX, newY, newZ];
