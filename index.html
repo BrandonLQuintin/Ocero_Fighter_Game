@@ -4,13 +4,17 @@
         <link rel="stylesheet" type="text/css" href="styles.css">
         <link rel="icon" href="resources/favicon.ico" type="image/x-icon">
     </head>
-        <canvas id="game-surface" width="800" height="600">
-            Your browser does not support HTML5
-        </canvas>
-        <button id="start-game-button" onclick="startGame(); this.style.display = 'none';">Click to start game!</button>
+    <button id="start-game-button" onclick="startGame(); this.style.display = 'none';">Click to start game!</button>
+        <canvas id="game-canvas" width="800" height="600">Your browser does not support HTML5</canvas>
+        <div class="container">
+            <div id="overlay">
+                <div id="ocero-text"><h2>I'm done with you!!!</h2></div>
+                <div id="game-text">Health: 100 | Score: 0</div>
+            </div>
+          </div>
+        
         <br>
-        <div id="ocero-text"><h2>Ocero Says: I'm done with you!!!</h2></div>
-        <div id="game-text">Health: 100 | Score: 0</div>
+        
         <img id="texture-atlas" src="resources/texture_atlas.png" width="0" height="0"></img>
         <!-- Royalty free music by Nicole Marie T -->
         <audio id="background-music" src="resources/music.mp3" preload="auto"></audio>

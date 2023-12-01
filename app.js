@@ -33,7 +33,10 @@ var InitDemo = function () {
 
 var main = function (vertexShaderText, fragmentShaderText) {
 
-	var canvas = document.getElementById('game-surface');
+	var canvas = document.getElementById('game-canvas');
+	var container = document.querySelector('.container');
+    container.style.display = 'block';
+	
 	gl = canvas.getContext('webgl');
 
 	if (!gl) {
@@ -437,7 +440,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 								music.pause();
 								music.currentTime = 0;
 								alert("You lost! You won " + winsAgainstOcero + " times against Ocero!");
-								oceroText.innerHTML = "<h2>Ocero Says: HA HA HA HA!!!<h2>";
+								oceroText.innerHTML = "<h2>HA HA HA HA!!!<h2>";
 								gameOver = true;
 								winsAgainstOcero = 0;
 								for (key in keys) {
@@ -535,7 +538,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 							enemyHealth -= 5;
 							if (enemyHealth < -100){
 								winsAgainstOcero += 1;
-								oceroText.innerHTML = "<h2>Ocero Says: THATS IT!!!<h2>";
+								oceroText.innerHTML = "<h2>THATS IT!!!<h2>";
 								enemyHealth = 100;
 								enemyIsDefeated = false;
 
