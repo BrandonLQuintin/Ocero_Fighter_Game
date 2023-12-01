@@ -303,6 +303,8 @@ var main = function (vertexShaderText, fragmentShaderText) {
 	var punchCounter = 0;
 
 	var winsAgainstOcero = 0;
+	var oceroDifficulty = .25;
+	var oceroImpatience = 0;
 	var gameOver = false;
 	var playerHealth = 100;
 
@@ -385,6 +387,8 @@ var main = function (vertexShaderText, fragmentShaderText) {
 				camPosCoord: [0, 0, objects[1].coord[2] - 8], targetPosCoord: [objects[1].coord], upwardDirCoord: [0, 1, 0]
 			}
 			playerHealth = 100;
+			oceroDifficulty = .25;
+			oceroImpatience = 0;
 		}
 
 		var currentTime = performance.now();
@@ -465,13 +469,13 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					distanceFromTarget = calculateDistance(proj.coord, proj.goToCoord);
 					distanceFromPlayer = calculateDistance(proj.coord, objects[1].coord);
 					if (distanceFromTarget > .3){
-						newCoordinates = moveToAnotherVertex(proj.coord, proj.goToCoord, 'forward', .50);
+						newCoordinates = moveToAnotherVertex(proj.coord, proj.goToCoord, 'forward', oceroDifficulty);
 						proj.coord = newCoordinates;
 						proj.worldMatrix[12] = proj.coord[0];
 						proj.worldMatrix[13] = proj.coord[1];
 						proj.worldMatrix[14] = proj.coord[2];
 
-						if (distanceFromPlayer < 2 && Date.now() - timeSincePlayerDamage >= 1000) {
+						if (distanceFromPlayer < .5 && Date.now() - timeSincePlayerDamage >= 1000) {
 							//console.log("player hit!");
 							if (currentlyBlocking == false){
 							playerHealth -= 20;
@@ -606,6 +610,10 @@ var main = function (vertexShaderText, fragmentShaderText) {
 							//console.log(enemyHealth);
 							enemyHealth -= 5;
 							if (enemyHealth < -100){
+								if(oceroDifficulty < .5){
+									oceroDifficulty += .05;
+									oceroImpatience += 100;
+								}
 								winsAgainstOcero += 1;
 								oceroText.innerHTML = "<h2>THATS IT!!!<h2>";
 								enemyHealth = 100;
@@ -705,7 +713,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					
 				}
 				else if(keys['d']){ // rotate right
-					newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, -0.04));
+					newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, -0.06));
 					camera.camPosCoord = newCamCoords;
 					gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
 					cameraChanged = true;
@@ -720,7 +728,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 		
 				}
 				else if(keys['a']){ // rotate left
-					newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, 0.04));
+					newCamCoords = (rotateObjectAroundAxis(camera.camPosCoord, objects[1].coord, 0.06));
 					camera.camPosCoord = newCamCoords;
 					gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
 					cameraChanged = true;
@@ -811,7 +819,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 			}
 			else if (index == 3) { // enemy
 				distanceFromTarget = calculateDistance(obj.coord, enemyGoToCoordinates); // enemy shoots
-				if (Date.now() - enemyLastShot >= 1000 && distanceFromTarget < 3 && enemyIsDefeated == false && enemyCurrentlyGettingPunched == false) {
+				if (Date.now() - enemyLastShot >= (1000 - oceroImpatience) && distanceFromTarget < 3 && enemyIsDefeated == false && enemyCurrentlyGettingPunched == false) {
 					enemyProjectileReachedTarget = false;
 					projectiles.push({ worldMatrix: mat4.create(), coord: [objects[2].coord[0], objects[2].coord[1], objects[2].coord[2]],
 					goToCoord: [objects[1].coord[0], objects[1].coord[1], objects[1].coord[2]]});
@@ -822,7 +830,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 
                 
 				if (distanceFromTarget > .3){
-					newNpcCoords = moveToAnotherVertex(obj.coord, enemyGoToCoordinates, "forward", .5);
+					newNpcCoords = moveToAnotherVertex(obj.coord, enemyGoToCoordinates, "forward", oceroDifficulty);
 				}
 				if (enemyIsDefeated == false){
 					outputUV = returnAtlasUV(0, 0)
