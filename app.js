@@ -6,7 +6,7 @@ var gl;
 var model;
 let music = document.getElementById('background-music');
 function startGame() {
-	alert("Welcome to Ocero's legendary fight!\nUse WASD to move around, and K to fight!");
+	alert("Welcome to Ocero's legendary fight!\nUse WASD to move around, and K to fight, and L to block!");
 	
 	music.volume = 0.3;
 	music.loop = true;
@@ -298,6 +298,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 
 	var flyingSoundEffectLastPlayed = Date.now();
 	var currentlyPunching = false;
+	var currentlyBlocking = false;
 	var punchAnimationBounceBack = false;
 	var punchCounter = 0;
 
@@ -354,6 +355,9 @@ var main = function (vertexShaderText, fragmentShaderText) {
 		currentlyPunching = false;
 		punchCounter = 0;
 	  }
+	  if (event.key === 'l') {
+		currentlyBlocking = false;
+	  }
 	});
 
 	// ------------- Main loop -------------
@@ -368,7 +372,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 			music.play();
 			gameOver = false;
 			objects = [
-				{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0]}, // placeholder
+				{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0]}, // forcefield
 				{ worldMatrix: mat4.create(), coord: [3.0, 3.0, -5.0]}, // player
 				{ worldMatrix: mat4.create(), coord: [3.0, 6.0, 5.0]}, // enemy
 				{ worldMatrix: mat4.create(), coord: [0.0, 0.0, 0.0]}, // floor
@@ -469,9 +473,12 @@ var main = function (vertexShaderText, fragmentShaderText) {
 
 						if (distanceFromPlayer < 2 && Date.now() - timeSincePlayerDamage >= 1000) {
 							//console.log("player hit!");
+							if (currentlyBlocking == false){
 							playerHealth -= 20;
 							document.body.style.backgroundColor = "rgb(255, 0, 0)";
 							currentlyHurt = true;
+							}
+							
 
 							if (playerHealth < 0){ // GAME OVER
 								music.pause();
@@ -553,7 +560,32 @@ var main = function (vertexShaderText, fragmentShaderText) {
 					gl.uniform2f(textureUCoord, uStart, uEnd);
 					gl.uniform2f(textureVCoord, vStart, vEnd);
 				  }
+				else if(keys['l']){ // block button
+					currentlyBlocking = true;
+					objects[0].worldMatrix[12] = objects[1].coord[0];
+					objects[0].worldMatrix[13] = objects[1].coord[1];
+					objects[0].worldMatrix[14] = objects[1].coord[2] - 1;
 
+					outputUV = returnAtlasUV(4, 0);
+					uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
+					gl.uniform2f(textureUCoord, uStart, uEnd);
+					gl.uniform2f(textureVCoord, vStart, vEnd);
+					
+					var direction = vec3.subtract([], camera.camPosCoord, obj.coord);
+  					vec3.normalize(direction, direction);
+  					var billboardRotation = mat4.fromRotation([], Math.atan2(-direction[0], -direction[2]), [0, 1, 0]);
+  					var billboardModelMatrix = mat4.clone(obj.worldMatrix);
+  					mat4.multiply(billboardModelMatrix, billboardModelMatrix, billboardRotation);
+  					mat4.multiply(modelViewMatrix, viewMatrix, billboardModelMatrix);
+  					gl.uniformMatrix4fv(modelViewMatrixUniform, gl.FALSE, modelViewMatrix);
+
+    	    		gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
+    	    		gl.drawElements(gl.TRIANGLES, billboardIndices.length, gl.UNSIGNED_SHORT, 0);
+
+
+					
+				}
 				else if(keys['k'] && calculateDistance(objects[1].coord, objects[2].coord) < 3){ // fight button
 					currentlyPunching = true;
 					punchCounter += 1;
@@ -782,7 +814,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 				if (Date.now() - enemyLastShot >= 1000 && distanceFromTarget < 3 && enemyIsDefeated == false && enemyCurrentlyGettingPunched == false) {
 					enemyProjectileReachedTarget = false;
 					projectiles.push({ worldMatrix: mat4.create(), coord: [objects[2].coord[0], objects[2].coord[1], objects[2].coord[2]],
-						 goToCoord: [objects[1].coord[0], objects[1].coord[1], objects[1].coord[2]]});
+					goToCoord: [objects[1].coord[0], objects[1].coord[1], objects[1].coord[2]]});
 					enemyLastShot = Date.now();
 					
 					//console.log("Enemy shot at!", enemyProjectileGoToCoordinates);
@@ -840,7 +872,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 
     	    	gl.bindTexture(gl.TEXTURE_2D, textureAtlas);
 				
-				outputUV = returnAtlasUV(5, 1);
+				outputUV = returnAtlasUV(5, 3);
 				uStart = outputUV[0]; vStart = outputUV[1]; uEnd = outputUV[2]; vEnd = outputUV[3];
 				gl.uniform2f(textureUCoord, uStart, uEnd);
 				gl.uniform2f(textureVCoord, vStart, vEnd);
