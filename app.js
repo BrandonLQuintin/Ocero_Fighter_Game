@@ -478,6 +478,9 @@ var main = function (vertexShaderText, fragmentShaderText) {
 						if (distanceFromPlayer < .5 && Date.now() - timeSincePlayerDamage >= 1000) {
 							//console.log("player hit!");
 							if (currentlyBlocking == false){
+							let audio = new Audio('resources/hit.mp3');
+							audio.volume = 0.3;
+							audio.play();
 							playerHealth -= 20;
 							document.body.style.backgroundColor = "rgb(255, 0, 0)";
 							currentlyHurt = true;
@@ -615,9 +618,10 @@ var main = function (vertexShaderText, fragmentShaderText) {
 									oceroImpatience += 100;
 								}
 								winsAgainstOcero += 1;
-								oceroText.innerHTML = "<h2>THATS IT!!!<h2>";
+								oceroText.innerHTML = "<h2>THAT'S IT!!!<h2>";
 								enemyHealth = 100;
 								enemyIsDefeated = false;
+								enemyCurrentlyGettingPunched = false;
 
 								for (key in keys) {
 									delete keys[key];
@@ -819,7 +823,7 @@ var main = function (vertexShaderText, fragmentShaderText) {
 			}
 			else if (index == 3) { // enemy
 				distanceFromTarget = calculateDistance(obj.coord, enemyGoToCoordinates); // enemy shoots
-				if (Date.now() - enemyLastShot >= (1000 - oceroImpatience) && distanceFromTarget < 3 && enemyIsDefeated == false && enemyCurrentlyGettingPunched == false) {
+				if (Date.now() - enemyLastShot >= (1000 - oceroImpatience) && distanceFromTarget < 1 && enemyIsDefeated == false && enemyCurrentlyGettingPunched == false) {
 					enemyProjectileReachedTarget = false;
 					projectiles.push({ worldMatrix: mat4.create(), coord: [objects[2].coord[0], objects[2].coord[1], objects[2].coord[2]],
 					goToCoord: [objects[1].coord[0], objects[1].coord[1], objects[1].coord[2]]});
